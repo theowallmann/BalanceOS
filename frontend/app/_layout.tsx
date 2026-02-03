@@ -83,6 +83,15 @@ export default function RootLayout() {
                 }}
               />
               <Tabs.Screen
+                name="blocker"
+                options={{
+                  title: 'Sperre',
+                  tabBarIcon: ({ color, size }) => (
+                    <Ionicons name="lock-closed" size={size} color={color} />
+                  ),
+                }}
+              />
+              <Tabs.Screen
                 name="profile"
                 options={{
                   title: 'Profil',
