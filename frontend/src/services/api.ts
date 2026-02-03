@@ -57,4 +57,27 @@ export const fitbitApi = {
   disconnect: () => api.delete('/fitbit/disconnect'),
 };
 
+// App Blocker API
+export const appBlockerApi = {
+  getRules: () => api.get('/app-blocker/rules'),
+  createRule: (data: any) => api.post('/app-blocker/rules', data),
+  getRule: (id: string) => api.get(`/app-blocker/rules/${id}`),
+  updateRule: (id: string, data: any) => api.put(`/app-blocker/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/app-blocker/rules/${id}`),
+  verifyPassword: (id: string, password: string) => api.post(`/app-blocker/rules/${id}/verify-password`, { password }),
+  verifySport: (id: string) => api.post(`/app-blocker/rules/${id}/verify-sport`),
+  temporaryUnlock: (id: string, appName?: string) => api.post(`/app-blocker/rules/${id}/temporary-unlock`, { app_name: appName }),
+  getActiveUnlocks: () => api.get('/app-blocker/temporary-unlocks'),
+  getStatus: () => api.get('/app-blocker/status'),
+};
+
+// Push Notifications API
+export const notificationsApi = {
+  getAll: () => api.get('/notifications'),
+  create: (data: any) => api.post('/notifications', data),
+  update: (id: string, data: any) => api.put(`/notifications/${id}`, data),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+  toggle: (id: string) => api.put(`/notifications/${id}/toggle`),
+};
+
 export default api;
