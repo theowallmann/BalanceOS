@@ -906,6 +906,321 @@ async def disconnect_fitbit():
     await db.fitbit_tokens.delete_many({})
     return {"message": "Fitbit getrennt"}
 
+# ==================== APP BLOCKER MODELS ====================
+
+class AppBlockSchedule(BaseModel):
+    days: List[str] = []  # monday, tuesday, etc.
+    start_time: str  # HH:MM
+    end_time: str  # HH:MM
+
+class AppBlockRule(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    apps: List[str] = []  # List of app names/identifiers, empty = all apps
+    block_all: bool = False
+    schedule: AppBlockSchedule
+    unlock_method: str = "password"  # password, sport, both
+    password: Optional[str] = None
+    sport_minutes_required: int = 30  # Minutes of sport needed to unlock
+    edit_lock_days: int = 0  # Days until rule can be edited
+    allow_temporary_unlock: bool = True  # Allow 5-minute unlock
+    temporary_unlock_minutes: int = 5
+    strict_mode: bool = False  # If true, no temporary unlock possible
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    edit_locked_until: Optional[datetime] = None
+
+class AppBlockRuleCreate(BaseModel):
+    name: str
+    apps: List[str] = []
+    block_all: bool = False
+    schedule: AppBlockSchedule
+    unlock_method: str = "password"
+    password: Optional[str] = None
+    sport_minutes_required: int = 30
+    edit_lock_days: int = 0
+    allow_temporary_unlock: bool = True
+    temporary_unlock_minutes: int = 5
+    strict_mode: bool = False
+
+class TemporaryUnlock(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    rule_id: str
+    app_name: Optional[str] = None
+    unlocked_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+
+# ==================== PUSH NOTIFICATION MODELS ====================
+
+class PushNotification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    message: str
+    schedule_time: str  # HH:MM
+    schedule_days: List[str] = []  # monday, tuesday, etc. Empty = daily
+    notification_type: str = "reminder"  # reminder, motivation, custom
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PushNotificationCreate(BaseModel):
+    title: str
+    message: str
+    schedule_time: str
+    schedule_days: List[str] = []
+    notification_type: str = "reminder"
+
+# ==================== APP BLOCKER ENDPOINTS ====================
+
+@api_router.get("/app-blocker/rules")
+async def get_app_block_rules():
+    """Get all app block rules"""
+    rules = await db.app_block_rules.find().to_list(100)
+    for rule in rules:
+        rule.pop('_id', None)
+    return rules
+
+@api_router.post("/app-blocker/rules")
+async def create_app_block_rule(rule: AppBlockRuleCreate):
+    """Create a new app block rule"""
+    rule_data = rule.dict()
+    
+    # Calculate edit lock date if specified
+    if rule.edit_lock_days > 0:
+        from datetime import timedelta
+        rule_data['edit_locked_until'] = datetime.utcnow() + timedelta(days=rule.edit_lock_days)
+    
+    new_rule = AppBlockRule(**rule_data)
+    await db.app_block_rules.insert_one(new_rule.dict())
+    
+    result = new_rule.dict()
+    return result
+
+@api_router.get("/app-blocker/rules/{rule_id}")
+async def get_app_block_rule(rule_id: str):
+    """Get a specific app block rule"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    rule.pop('_id', None)
+    return rule
+
+@api_router.put("/app-blocker/rules/{rule_id}")
+async def update_app_block_rule(rule_id: str, update: Dict):
+    """Update an app block rule (if not edit-locked)"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    
+    # Check if edit is locked
+    if rule.get('edit_locked_until'):
+        lock_date = rule['edit_locked_until']
+        if isinstance(lock_date, str):
+            lock_date = datetime.fromisoformat(lock_date)
+        if datetime.utcnow() < lock_date:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Regel kann nicht bearbeitet werden bis {lock_date.strftime('%d.%m.%Y')}"
+            )
+    
+    # Check if currently in active schedule
+    if is_rule_currently_active(rule):
+        raise HTTPException(
+            status_code=403,
+            detail="Regel kann während des aktiven Zeitraums nicht bearbeitet werden"
+        )
+    
+    await db.app_block_rules.update_one({"id": rule_id}, {"$set": update})
+    updated = await db.app_block_rules.find_one({"id": rule_id})
+    updated.pop('_id', None)
+    return updated
+
+@api_router.delete("/app-blocker/rules/{rule_id}")
+async def delete_app_block_rule(rule_id: str):
+    """Delete an app block rule (if not edit-locked or active)"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    
+    # Check if edit is locked
+    if rule.get('edit_locked_until'):
+        lock_date = rule['edit_locked_until']
+        if isinstance(lock_date, str):
+            lock_date = datetime.fromisoformat(lock_date)
+        if datetime.utcnow() < lock_date:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Regel kann nicht gelöscht werden bis {lock_date.strftime('%d.%m.%Y')}"
+            )
+    
+    # Check if currently active
+    if is_rule_currently_active(rule):
+        raise HTTPException(
+            status_code=403,
+            detail="Regel kann während des aktiven Zeitraums nicht gelöscht werden"
+        )
+    
+    await db.app_block_rules.delete_one({"id": rule_id})
+    return {"message": "Regel gelöscht"}
+
+def is_rule_currently_active(rule: Dict) -> bool:
+    """Check if a rule is currently in its active time window"""
+    now = datetime.utcnow()
+    current_day = now.strftime("%A").lower()
+    current_time = now.strftime("%H:%M")
+    
+    schedule = rule.get('schedule', {})
+    days = schedule.get('days', [])
+    start_time = schedule.get('start_time', '00:00')
+    end_time = schedule.get('end_time', '23:59')
+    
+    # Check if current day is in schedule
+    if days and current_day not in [d.lower() for d in days]:
+        return False
+    
+    # Check if current time is within schedule
+    return start_time <= current_time <= end_time
+
+@api_router.post("/app-blocker/rules/{rule_id}/verify-password")
+async def verify_block_password(rule_id: str, data: Dict):
+    """Verify password to unlock"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    
+    if rule.get('password') == data.get('password'):
+        return {"verified": True}
+    return {"verified": False}
+
+@api_router.post("/app-blocker/rules/{rule_id}/verify-sport")
+async def verify_sport_unlock(rule_id: str):
+    """Check if enough sport activity for unlock"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    
+    # Get today's sport data
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    sport = await db.sport.find_one({"date": today})
+    
+    if not sport:
+        return {"verified": False, "minutes_done": 0, "minutes_required": rule.get('sport_minutes_required', 30)}
+    
+    # Calculate total workout minutes
+    total_minutes = sum(w.get('duration', 0) for w in sport.get('workouts', []))
+    required_minutes = rule.get('sport_minutes_required', 30)
+    
+    return {
+        "verified": total_minutes >= required_minutes,
+        "minutes_done": total_minutes,
+        "minutes_required": required_minutes
+    }
+
+@api_router.post("/app-blocker/rules/{rule_id}/temporary-unlock")
+async def create_temporary_unlock(rule_id: str, data: Dict):
+    """Create a temporary unlock for an app"""
+    rule = await db.app_block_rules.find_one({"id": rule_id})
+    if not rule:
+        raise HTTPException(status_code=404, detail="Regel nicht gefunden")
+    
+    if rule.get('strict_mode') or not rule.get('allow_temporary_unlock', True):
+        raise HTTPException(
+            status_code=403,
+            detail="Temporäres Entsperren ist für diese Regel deaktiviert"
+        )
+    
+    from datetime import timedelta
+    unlock_minutes = rule.get('temporary_unlock_minutes', 5)
+    
+    unlock = TemporaryUnlock(
+        rule_id=rule_id,
+        app_name=data.get('app_name'),
+        expires_at=datetime.utcnow() + timedelta(minutes=unlock_minutes)
+    )
+    
+    await db.temporary_unlocks.insert_one(unlock.dict())
+    
+    return {
+        "message": f"App für {unlock_minutes} Minuten entsperrt",
+        "expires_at": unlock.expires_at.isoformat(),
+        "unlock_id": unlock.id
+    }
+
+@api_router.get("/app-blocker/temporary-unlocks")
+async def get_active_temporary_unlocks():
+    """Get all currently active temporary unlocks"""
+    now = datetime.utcnow()
+    unlocks = await db.temporary_unlocks.find({
+        "expires_at": {"$gt": now}
+    }).to_list(100)
+    
+    for unlock in unlocks:
+        unlock.pop('_id', None)
+    return unlocks
+
+@api_router.get("/app-blocker/status")
+async def get_blocker_status():
+    """Get current blocker status - which rules are active"""
+    rules = await db.app_block_rules.find({"is_active": True}).to_list(100)
+    active_rules = []
+    
+    for rule in rules:
+        if is_rule_currently_active(rule):
+            rule.pop('_id', None)
+            rule.pop('password', None)  # Don't expose password
+            active_rules.append(rule)
+    
+    return {
+        "is_blocking": len(active_rules) > 0,
+        "active_rules": active_rules
+    }
+
+# ==================== PUSH NOTIFICATION ENDPOINTS ====================
+
+@api_router.get("/notifications")
+async def get_notifications():
+    """Get all push notification settings"""
+    notifications = await db.push_notifications.find().to_list(100)
+    for notif in notifications:
+        notif.pop('_id', None)
+    return notifications
+
+@api_router.post("/notifications")
+async def create_notification(notification: PushNotificationCreate):
+    """Create a new push notification"""
+    new_notif = PushNotification(**notification.dict())
+    await db.push_notifications.insert_one(new_notif.dict())
+    return new_notif.dict()
+
+@api_router.put("/notifications/{notif_id}")
+async def update_notification(notif_id: str, update: Dict):
+    """Update a push notification"""
+    await db.push_notifications.update_one({"id": notif_id}, {"$set": update})
+    updated = await db.push_notifications.find_one({"id": notif_id})
+    if updated:
+        updated.pop('_id', None)
+        return updated
+    raise HTTPException(status_code=404, detail="Benachrichtigung nicht gefunden")
+
+@api_router.delete("/notifications/{notif_id}")
+async def delete_notification(notif_id: str):
+    """Delete a push notification"""
+    result = await db.push_notifications.delete_one({"id": notif_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Benachrichtigung nicht gefunden")
+    return {"message": "Benachrichtigung gelöscht"}
+
+@api_router.put("/notifications/{notif_id}/toggle")
+async def toggle_notification(notif_id: str):
+    """Toggle notification active state"""
+    notif = await db.push_notifications.find_one({"id": notif_id})
+    if not notif:
+        raise HTTPException(status_code=404, detail="Benachrichtigung nicht gefunden")
+    
+    new_state = not notif.get('is_active', True)
+    await db.push_notifications.update_one({"id": notif_id}, {"$set": {"is_active": new_state}})
+    
+    return {"is_active": new_state}
+
 # ==================== ROOT ENDPOINT ====================
 
 @api_router.get("/")
