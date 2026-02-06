@@ -554,6 +554,26 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Tracking Settings Link */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Einstellungen</Text>
+            <TouchableOpacity 
+              style={styles.settingsLink}
+              onPress={() => router.push('/settings')}
+            >
+              <View style={styles.settingsLinkLeft}>
+                <View style={[styles.settingsIcon, { backgroundColor: COLORS.primary + '20' }]}>
+                  <Ionicons name="options" size={24} color={COLORS.primary} />
+                </View>
+                <View>
+                  <Text style={styles.settingsLinkTitle}>Tracking-Einstellungen</Text>
+                  <Text style={styles.settingsLinkSubtitle}>Was möchtest du tracken?</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
