@@ -12,9 +12,10 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { profileApi, fitbitApi } from '../src/services/api';
@@ -22,6 +23,8 @@ import { profileApi, fitbitApi } from '../src/services/api';
 export default function ProfileScreen() {
   const { t, language, switchLanguage } = useLanguage();
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState(false);
   const [aiGoalText, setAiGoalText] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
