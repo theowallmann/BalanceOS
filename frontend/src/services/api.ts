@@ -47,6 +47,7 @@ export const sportApi = {
 export const analyticsApi = {
   getDaily: (date: string) => api.get(`/analytics/${date}`),
   getWeekly: (endDate: string) => api.get(`/analytics/weekly/${endDate}`),
+  getPeriod: (period: string) => api.get(`/analytics/period/${period}`),
 };
 
 // Fitbit API
