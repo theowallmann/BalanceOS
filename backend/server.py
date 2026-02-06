@@ -741,6 +741,177 @@ async def get_weekly_analytics(end_date: str):
     
     return {"days": days}
 
+@api_router.get("/analytics/period/{period}")
+async def get_period_analytics(period: str):
+    """Get analytics for a period: today, month (30 days), or all time"""
+    from datetime import timedelta
+    
+    profile = await db.profiles.find_one({})
+    tracking_settings = profile.get('tracking_settings', {}) if profile else {}
+    
+    today = datetime.utcnow().date()
+    
+    if period == "today":
+        start_date = today
+        end_date = today
+    elif period == "month":
+        start_date = today - timedelta(days=30)
+        end_date = today
+    else:  # all
+        # Get the earliest data we have
+        earliest_nutrition = await db.nutrition.find_one({}, sort=[("date", 1)])
+        earliest_vital = await db.vitals.find_one({}, sort=[("date", 1)])
+        earliest_sport = await db.sport.find_one({}, sort=[("date", 1)])
+        
+        dates = []
+        if earliest_nutrition:
+            dates.append(earliest_nutrition.get('date'))
+        if earliest_vital:
+            dates.append(earliest_vital.get('date'))
+        if earliest_sport:
+            dates.append(earliest_sport.get('date'))
+        
+        if dates:
+            start_date = datetime.strptime(min(dates), "%Y-%m-%d").date()
+        else:
+            start_date = today
+        end_date = today
+    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    
+    # Get all nutrition data in range
+    nutrition_entries = await db.nutrition.find({
+        "date": {"$gte": start_str, "$lte": end_str}
+    }).to_list(1000)
+    
+    # Get all vitals in range
+    vitals_entries = await db.vitals.find({
+        "date": {"$gte": start_str, "$lte": end_str}
+    }).sort("date", 1).to_list(1000)
+    
+    # Get all sport data in range
+    sport_entries = await db.sport.find({
+        "date": {"$gte": start_str, "$lte": end_str}
+    }).to_list(1000)
+    
+    # Calculate number of days with data
+    nutrition_days = len(set(e.get('date') for e in nutrition_entries))
+    vitals_days = len(set(e.get('date') for e in vitals_entries))
+    sport_days = len(set(e.get('date') for e in sport_entries))
+    
+    # Calculate nutrition totals and averages
+    nutrition_totals = {
+        "calories": sum(e.get('calories', 0) or 0 for e in nutrition_entries),
+        "protein": sum(e.get('protein', 0) or 0 for e in nutrition_entries),
+        "carbs": sum(e.get('carbs', 0) or 0 for e in nutrition_entries),
+        "fat": sum(e.get('fat', 0) or 0 for e in nutrition_entries),
+        "fiber": sum(e.get('fiber', 0) or 0 for e in nutrition_entries),
+        "sugar": sum(e.get('sugar', 0) or 0 for e in nutrition_entries),
+        "salt": sum(e.get('salt', 0) or 0 for e in nutrition_entries),
+        "water": sum(e.get('water', 0) or 0 for e in nutrition_entries),
+    }
+    
+    nutrition_averages = {
+        k: round(v / nutrition_days, 1) if nutrition_days > 0 else 0
+        for k, v in nutrition_totals.items()
+    }
+    
+    # Calculate sport totals and averages
+    total_steps = sum(e.get('steps', 0) or 0 for e in sport_entries)
+    total_workouts = sum(len(e.get('workouts', [])) for e in sport_entries)
+    total_workout_calories = sum(
+        sum(w.get('calories_burned', 0) or 0 for w in e.get('workouts', []))
+        for e in sport_entries
+    )
+    total_workout_minutes = sum(
+        sum(w.get('duration', 0) or 0 for w in e.get('workouts', []))
+        for e in sport_entries
+    )
+    
+    sport_averages = {
+        "steps_per_day": round(total_steps / sport_days, 0) if sport_days > 0 else 0,
+        "workouts_per_week": round(total_workouts / max(1, (end_date - start_date).days / 7), 1),
+        "workout_calories_per_day": round(total_workout_calories / sport_days, 0) if sport_days > 0 else 0,
+    }
+    
+    # Calculate weight change (start vs end)
+    weight_change = None
+    body_fat_change = None
+    start_weight = None
+    end_weight = None
+    start_body_fat = None
+    end_body_fat = None
+    
+    if vitals_entries:
+        # Find first and last entries with weight
+        for entry in vitals_entries:
+            if entry.get('weight') and start_weight is None:
+                start_weight = entry.get('weight')
+                start_body_fat = entry.get('body_fat')
+                break
+        
+        for entry in reversed(vitals_entries):
+            if entry.get('weight'):
+                end_weight = entry.get('weight')
+                end_body_fat = entry.get('body_fat')
+                break
+        
+        if start_weight and end_weight:
+            weight_change = round(end_weight - start_weight, 1)
+        if start_body_fat and end_body_fat:
+            body_fat_change = round(end_body_fat - start_body_fat, 1)
+    
+    # Sleep averages
+    sleep_durations = [e.get('sleep_duration') for e in vitals_entries if e.get('sleep_duration')]
+    avg_sleep = round(sum(sleep_durations) / len(sleep_durations), 1) if sleep_durations else None
+    
+    # Get goals from profile
+    nutrient_goals = profile.get('nutrient_goals', {}) if profile else {}
+    sport_goals = profile.get('sport_goals', {}) if profile else {}
+    
+    return {
+        "period": period,
+        "start_date": start_str,
+        "end_date": end_str,
+        "days_with_data": {
+            "nutrition": nutrition_days,
+            "vitals": vitals_days,
+            "sport": sport_days,
+        },
+        "nutrition": {
+            "totals": nutrition_totals,
+            "averages": nutrition_averages,
+            "goals": nutrient_goals,
+        },
+        "vitals": {
+            "weight": {
+                "start": start_weight,
+                "end": end_weight,
+                "change": weight_change,
+            },
+            "body_fat": {
+                "start": start_body_fat,
+                "end": end_body_fat,
+                "change": body_fat_change,
+            },
+            "sleep": {
+                "average_hours": avg_sleep,
+            },
+        },
+        "sport": {
+            "totals": {
+                "steps": total_steps,
+                "workouts": total_workouts,
+                "workout_calories": total_workout_calories,
+                "workout_minutes": total_workout_minutes,
+            },
+            "averages": sport_averages,
+            "goals": sport_goals,
+        },
+        "tracking_settings": tracking_settings,
+    }
+
 # ==================== FITBIT ENDPOINTS ====================
 
 @api_router.get("/fitbit/auth-url")
