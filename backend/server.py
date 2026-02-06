@@ -40,6 +40,29 @@ logger = logging.getLogger(__name__)
 
 # ==================== MODELS ====================
 
+# Tracking Settings Model
+class TrackingSettings(BaseModel):
+    # Nutrition tracking
+    track_calories: bool = True
+    track_protein: bool = True
+    track_carbs: bool = True
+    track_fat: bool = True
+    track_fiber: bool = False
+    track_sugar: bool = False
+    track_salt: bool = False
+    track_water: bool = True
+    # Vital tracking
+    track_weight: bool = True
+    track_body_fat: bool = False
+    track_sleep: bool = True
+    track_sleep_quality: bool = False
+    track_morning_energy: bool = False
+    track_resting_heart_rate: bool = False
+    # Sport tracking
+    track_steps: bool = True
+    track_workouts: bool = True
+    track_calories_burned: bool = True
+
 # Profile Models
 class NutrientGoals(BaseModel):
     calories: Optional[int] = 2000
@@ -70,6 +93,7 @@ class Profile(BaseModel):
     nutrient_goals: NutrientGoals = Field(default_factory=NutrientGoals)
     vital_goals: VitalGoals = Field(default_factory=VitalGoals)
     sport_goals: SportGoals = Field(default_factory=SportGoals)
+    tracking_settings: TrackingSettings = Field(default_factory=TrackingSettings)
     overall_goal: Optional[str] = None  # Free text goal for AI
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -81,6 +105,7 @@ class ProfileUpdate(BaseModel):
     nutrient_goals: Optional[NutrientGoals] = None
     vital_goals: Optional[VitalGoals] = None
     sport_goals: Optional[SportGoals] = None
+    tracking_settings: Optional[TrackingSettings] = None
     overall_goal: Optional[str] = None
 
 # Nutrition Models
