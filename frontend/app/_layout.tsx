@@ -107,6 +107,12 @@ export default function RootLayout() {
                   ),
                 }}
               />
+              <Tabs.Screen
+                name="settings"
+                options={{
+                  href: null, // Hide from tab bar
+                }}
+              />
             </Tabs>
           </View>
         </SafeAreaProvider>
