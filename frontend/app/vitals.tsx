@@ -167,12 +167,17 @@ export default function VitalsScreen() {
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : (
             <>
-              {/* Body Metrics */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Körperdaten</Text>
-                {renderVitalCard('scale', t('weight'), vitals?.weight, t('kg'), COLORS.info, 'weight')}
-                {renderVitalCard('body', t('bodyFat'), vitals?.body_fat, '%', COLORS.secondary, 'body_fat')}
-              </View>
+              {/* Body Metrics - only show if any tracking enabled */}
+              {(profile?.tracking_settings?.track_weight !== false || 
+                profile?.tracking_settings?.track_body_fat !== false) && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Körperdaten</Text>
+                  {profile?.tracking_settings?.track_weight !== false && 
+                    renderVitalCard('scale', t('weight'), vitals?.weight, t('kg'), COLORS.info, 'weight')}
+                  {profile?.tracking_settings?.track_body_fat !== false && 
+                    renderVitalCard('body', t('bodyFat'), vitals?.body_fat, '%', COLORS.secondary, 'body_fat')}
+                </View>
+              )}
 
               {/* Metabolic Data */}
               {(vitals?.basal_metabolic_rate || vitals?.neat) && (
@@ -195,58 +200,69 @@ export default function VitalsScreen() {
                 </View>
               )}
 
-              {/* Sleep Data */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Schlaf</Text>
-                <View style={styles.sleepCard}>
-                  <View style={styles.sleepTimeRow}>
-                    <TouchableOpacity 
-                      style={styles.sleepTimeItem}
-                      onPress={() => openEditModal('sleep_start')}
-                    >
-                      <Ionicons name="moon" size={20} color={COLORS.secondary} />
-                      <Text style={styles.sleepTimeLabel}>{t('sleepStart')}</Text>
-                      <Text style={styles.sleepTimeValue}>{vitals?.sleep_start || '--:--'}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.sleepArrow}>
-                      <Ionicons name="arrow-forward" size={20} color={COLORS.textSecondary} />
+              {/* Sleep Data - only show if sleep tracking enabled */}
+              {profile?.tracking_settings?.track_sleep !== false && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Schlaf</Text>
+                  <View style={styles.sleepCard}>
+                    <View style={styles.sleepTimeRow}>
+                      <TouchableOpacity 
+                        style={styles.sleepTimeItem}
+                        onPress={() => openEditModal('sleep_start')}
+                      >
+                        <Ionicons name="moon" size={20} color={COLORS.secondary} />
+                        <Text style={styles.sleepTimeLabel}>{t('sleepStart')}</Text>
+                        <Text style={styles.sleepTimeValue}>{vitals?.sleep_start || '--:--'}</Text>
+                      </TouchableOpacity>
+                      <View style={styles.sleepArrow}>
+                        <Ionicons name="arrow-forward" size={20} color={COLORS.textSecondary} />
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.sleepTimeItem}
+                        onPress={() => openEditModal('sleep_end')}
+                      >
+                        <Ionicons name="sunny" size={20} color={COLORS.accent} />
+                        <Text style={styles.sleepTimeLabel}>{t('sleepEnd')}</Text>
+                        <Text style={styles.sleepTimeValue}>{vitals?.sleep_end || '--:--'}</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.sleepTimeItem}
-                      onPress={() => openEditModal('sleep_end')}
-                    >
-                      <Ionicons name="sunny" size={20} color={COLORS.accent} />
-                      <Text style={styles.sleepTimeLabel}>{t('sleepEnd')}</Text>
-                      <Text style={styles.sleepTimeValue}>{vitals?.sleep_end || '--:--'}</Text>
-                    </TouchableOpacity>
+                    
+                    {vitals?.sleep_duration && (
+                      <View style={styles.sleepDuration}>
+                        <Ionicons name="time" size={24} color={COLORS.primary} />
+                        <Text style={styles.sleepDurationText}>
+                          {vitals.sleep_duration} {t('hours')} {t('sleepDuration')}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  
-                  {vitals?.sleep_duration && (
-                    <View style={styles.sleepDuration}>
-                      <Ionicons name="time" size={24} color={COLORS.primary} />
-                      <Text style={styles.sleepDurationText}>
-                        {vitals.sleep_duration} {t('hours')} {t('sleepDuration')}
-                      </Text>
+
+                  {/* Sleep Quality & Morning Energy */}
+                  {(profile?.tracking_settings?.track_sleep_quality !== false || 
+                    profile?.tracking_settings?.track_morning_energy !== false) && (
+                    <View style={styles.ratingsCard}>
+                      {profile?.tracking_settings?.track_sleep_quality !== false && (
+                        <TouchableOpacity onPress={() => openEditModal('sleep_quality')}>
+                          {renderRatingBar(t('sleepQuality'), vitals?.sleep_quality)}
+                        </TouchableOpacity>
+                      )}
+                      {profile?.tracking_settings?.track_morning_energy !== false && (
+                        <TouchableOpacity onPress={() => openEditModal('morning_energy')}>
+                          {renderRatingBar(t('morningEnergy'), vitals?.morning_energy)}
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
+              )}
 
-                {/* Sleep Quality & Morning Energy */}
-                <View style={styles.ratingsCard}>
-                  <TouchableOpacity onPress={() => openEditModal('sleep_quality')}>
-                    {renderRatingBar(t('sleepQuality'), vitals?.sleep_quality)}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openEditModal('morning_energy')}>
-                    {renderRatingBar(t('morningEnergy'), vitals?.morning_energy)}
-                  </TouchableOpacity>
+              {/* Heart Rate - only show if tracking enabled */}
+              {profile?.tracking_settings?.track_resting_heart_rate !== false && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Herz</Text>
+                  {renderVitalCard('heart', t('restingHeartRate'), vitals?.resting_heart_rate, t('bpm'), COLORS.error, 'resting_heart_rate')}
                 </View>
-              </View>
-
-              {/* Heart Rate */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Herz</Text>
-                {renderVitalCard('heart', t('restingHeartRate'), vitals?.resting_heart_rate, t('bpm'), COLORS.error, 'resting_heart_rate')}
-              </View>
+              )}
 
               {/* Source Info */}
               {vitals?.source && vitals.source !== 'manual' && (
