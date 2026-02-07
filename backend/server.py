@@ -54,6 +54,7 @@ class TrackingSettings(BaseModel):
     # Vital tracking
     track_weight: bool = True
     track_body_fat: bool = False
+    track_bmr_neat: bool = True
     track_sleep: bool = True
     track_sleep_quality: bool = False
     track_morning_energy: bool = False
@@ -62,6 +63,15 @@ class TrackingSettings(BaseModel):
     track_steps: bool = True
     track_workouts: bool = True
     track_calories_burned: bool = True
+    # Calculations
+    show_calorie_breakdown: bool = True
+    # Tab visibility
+    show_dashboard_tab: bool = True
+    show_nutrition_tab: bool = True
+    show_sport_tab: bool = True
+    show_vitals_tab: bool = True
+    show_finance_tab: bool = True
+    show_blocker_tab: bool = True
 
 # Profile Models
 class NutrientGoals(BaseModel):
