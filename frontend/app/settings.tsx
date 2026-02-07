@@ -346,6 +346,7 @@ export default function SettingsScreen() {
                 ]}>
                   {preset.label}
                 </Text>
+                <Text style={styles.presetDescription}>{preset.description}</Text>
                 {activePreset === preset.key && (
                   <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} style={styles.presetCheck} />
                 )}
