@@ -30,6 +30,7 @@ interface TrackingSettings {
   // Vitals
   track_weight: boolean;
   track_body_fat: boolean;
+  track_bmr_neat: boolean;
   track_sleep: boolean;
   track_sleep_quality: boolean;
   track_morning_energy: boolean;
@@ -38,7 +39,10 @@ interface TrackingSettings {
   track_steps: boolean;
   track_workouts: boolean;
   track_calories_burned: boolean;
+  // Calculations
+  show_calorie_breakdown: boolean;
   // Tab Visibility
+  show_dashboard_tab: boolean;
   show_nutrition_tab: boolean;
   show_sport_tab: boolean;
   show_vitals_tab: boolean;
@@ -59,6 +63,7 @@ const DEFAULT_SETTINGS: TrackingSettings = {
   // Vitals - all on by default
   track_weight: true,
   track_body_fat: true,
+  track_bmr_neat: true,
   track_sleep: true,
   track_sleep_quality: true,
   track_morning_energy: true,
@@ -67,7 +72,10 @@ const DEFAULT_SETTINGS: TrackingSettings = {
   track_steps: true,
   track_workouts: true,
   track_calories_burned: true,
+  // Calculations
+  show_calorie_breakdown: true,
   // Tab Visibility - all on by default
+  show_dashboard_tab: true,
   show_nutrition_tab: true,
   show_sport_tab: true,
   show_vitals_tab: true,
