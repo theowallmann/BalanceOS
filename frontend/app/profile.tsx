@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [aiGoalText, setAiGoalText] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   
   const [formData, setFormData] = useState({
     birth_date: '',
