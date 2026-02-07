@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  AppState,
+  NativeModules,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +22,52 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { appBlockerApi, notificationsApi } from '../src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// ============================================
+// ACCESSIBILITY SERVICE INTEGRATION
+// ============================================
+// This code prepares the app for real app blocking functionality
+// using Android's Accessibility Service. In production (installed APK),
+// this will intercept app launches and redirect to this screen.
+
+const ACCESSIBILITY_STORAGE_KEY = '@accessibility_permission_granted';
+
+// Check if accessibility service is enabled (will work when native module is added)
+const checkAccessibilityPermission = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android') return false;
+  
+  try {
+    // Try to use native module if available (for production builds)
+    if (NativeModules.AccessibilityServiceModule) {
+      return await NativeModules.AccessibilityServiceModule.isEnabled();
+    }
+    // Fallback: check stored permission status
+    const stored = await AsyncStorage.getItem(ACCESSIBILITY_STORAGE_KEY);
+    return stored === 'true';
+  } catch (error) {
+    console.log('Accessibility check not available in preview');
+    return false;
+  }
+};
+
+// Open Android Accessibility Settings
+const openAccessibilitySettings = () => {
+  if (Platform.OS === 'android') {
+    // Direct link to Accessibility Settings
+    Linking.openSettings().catch(() => {
+      // Fallback: try specific accessibility settings intent
+      Linking.openURL('android-settings://accessibility').catch(() => {
+        Alert.alert(
+          'Einstellungen öffnen',
+          'Bitte öffne manuell: Einstellungen → Bedienungshilfen → Installierte Dienste → [App Name]'
+        );
+      });
+    });
+  } else {
+    Alert.alert('Hinweis', 'Diese Funktion ist nur auf Android verfügbar');
+  }
+};
 
 const DAYS = [
   { key: 'monday', label: 'Mo' },
