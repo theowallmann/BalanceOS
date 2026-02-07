@@ -1592,6 +1592,126 @@ async def toggle_notification(notif_id: str):
     
     return {"is_active": new_state}
 
+# ==================== CSV EXPORT ENDPOINT ====================
+
+@api_router.get("/export/csv")
+async def export_data_csv(start_date: Optional[str] = None, end_date: Optional[str] = None):
+    """Export all tracked data as CSV format (returns JSON with CSV strings)"""
+    import io
+    import csv
+    
+    # Default to last 30 days if no dates provided
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    if not start_date:
+        from datetime import timedelta
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    
+    # Get all nutrition entries
+    nutrition_entries = await db.nutrition_entries.find({
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).sort("date", 1).to_list(10000)
+    
+    # Get all vitals entries
+    vitals_entries = await db.vitals.find({
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).sort("date", 1).to_list(10000)
+    
+    # Get all sport entries
+    sport_entries = await db.sport.find({
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).sort("date", 1).to_list(10000)
+    
+    # Get all finance entries
+    finance_entries = await db.finance_entries.find({
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).sort("date", 1).to_list(10000)
+    
+    # Build Nutrition CSV
+    nutrition_csv = io.StringIO()
+    nutrition_writer = csv.writer(nutrition_csv, delimiter=';')
+    nutrition_writer.writerow(['Datum', 'Uhrzeit', 'Beschreibung', 'Kalorien', 'Protein (g)', 'Kohlenhydrate (g)', 'Fett (g)', 'Ballaststoffe (g)', 'Zucker (g)', 'Salz (g)', 'Wasser (ml)'])
+    for entry in nutrition_entries:
+        nutrition_writer.writerow([
+            entry.get('date', ''),
+            entry.get('time', ''),
+            entry.get('description', ''),
+            entry.get('calories', 0),
+            entry.get('protein', 0),
+            entry.get('carbs', 0),
+            entry.get('fat', 0),
+            entry.get('fiber', 0),
+            entry.get('sugar', 0),
+            entry.get('salt', 0),
+            entry.get('water', 0),
+        ])
+    
+    # Build Vitals CSV
+    vitals_csv = io.StringIO()
+    vitals_writer = csv.writer(vitals_csv, delimiter=';')
+    vitals_writer.writerow(['Datum', 'Gewicht (kg)', 'Körperfett (%)', 'BMR (kcal)', 'NEAT (kcal)', 'Schlafbeginn', 'Schlafende', 'Schlafdauer (h)', 'Schlafqualität', 'Morgenenergie', 'Ruhepuls (bpm)'])
+    for entry in vitals_entries:
+        vitals_writer.writerow([
+            entry.get('date', ''),
+            entry.get('weight', ''),
+            entry.get('body_fat', ''),
+            entry.get('basal_metabolic_rate', ''),
+            entry.get('neat', ''),
+            entry.get('sleep_start', ''),
+            entry.get('sleep_end', ''),
+            entry.get('sleep_duration', ''),
+            entry.get('sleep_quality', ''),
+            entry.get('morning_energy', ''),
+            entry.get('resting_heart_rate', ''),
+        ])
+    
+    # Build Sport CSV
+    sport_csv = io.StringIO()
+    sport_writer = csv.writer(sport_csv, delimiter=';')
+    sport_writer.writerow(['Datum', 'Schritte', 'Verbrannte Kalorien', 'Trainingseinheiten', 'Trainingsminuten'])
+    for entry in sport_entries:
+        workouts = entry.get('workouts', [])
+        total_workout_minutes = sum(w.get('duration', 0) or 0 for w in workouts)
+        sport_writer.writerow([
+            entry.get('date', ''),
+            entry.get('steps', 0),
+            entry.get('calories_burned', 0),
+            len(workouts),
+            total_workout_minutes,
+        ])
+    
+    # Build Finance CSV
+    finance_csv = io.StringIO()
+    finance_writer = csv.writer(finance_csv, delimiter=';')
+    finance_writer.writerow(['Datum', 'Kategorie', 'Beschreibung', 'Betrag (€)'])
+    
+    # Get category names
+    categories = await db.finance_categories.find({}).to_list(100)
+    cat_names = {c.get('id'): c.get('name', 'Unbekannt') for c in categories}
+    
+    for entry in finance_entries:
+        finance_writer.writerow([
+            entry.get('date', ''),
+            cat_names.get(entry.get('category_id', ''), 'Unbekannt'),
+            entry.get('description', ''),
+            entry.get('amount', 0),
+        ])
+    
+    return {
+        "start_date": start_date,
+        "end_date": end_date,
+        "nutrition_csv": nutrition_csv.getvalue(),
+        "vitals_csv": vitals_csv.getvalue(),
+        "sport_csv": sport_csv.getvalue(),
+        "finance_csv": finance_csv.getvalue(),
+        "counts": {
+            "nutrition": len(nutrition_entries),
+            "vitals": len(vitals_entries),
+            "sport": len(sport_entries),
+            "finance": len(finance_entries),
+        }
+    }
+
 # ==================== ROOT ENDPOINT ====================
 
 @api_router.get("/")
