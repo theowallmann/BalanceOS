@@ -598,6 +598,31 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Data Export Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Daten</Text>
+            <TouchableOpacity 
+              style={styles.settingsLink}
+              onPress={handleExportData}
+              disabled={isExporting}
+            >
+              <View style={styles.settingsLinkLeft}>
+                <View style={[styles.settingsIcon, { backgroundColor: COLORS.info + '20' }]}>
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color={COLORS.info} />
+                  ) : (
+                    <Ionicons name="download-outline" size={24} color={COLORS.info} />
+                  )}
+                </View>
+                <View>
+                  <Text style={styles.settingsLinkTitle}>Daten exportieren</Text>
+                  <Text style={styles.settingsLinkSubtitle}>Alle Daten als CSV (letzte 30 Tage)</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
