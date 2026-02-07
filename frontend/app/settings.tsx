@@ -389,6 +389,7 @@ export default function SettingsScreen() {
           <View style={styles.sectionCard}>
             {renderToggle('track_weight', t('weight'), 'scale', COLORS.info)}
             {renderToggle('track_body_fat', t('bodyFat'), 'body', COLORS.secondary)}
+            {renderToggle('track_bmr_neat', 'BMR & NEAT', 'flash', COLORS.accent)}
             {renderToggle('track_sleep', t('sleepDuration'), 'moon', COLORS.secondary)}
             {renderToggle('track_sleep_quality', t('sleepQuality'), 'star', COLORS.accent)}
             {renderToggle('track_morning_energy', t('morningEnergy'), 'sunny', COLORS.accent)}
@@ -406,7 +407,18 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Tab Visibility Section - NEW */}
+        {/* Calculations Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧮 Berechnungen</Text>
+          <Text style={styles.sectionHint}>
+            Zeige detaillierte Aufschlüsselungen der Kalorienberechnung
+          </Text>
+          <View style={styles.sectionCard}>
+            {renderToggle('show_calorie_breakdown', 'Kalorienaufschlüsselung', 'calculator', COLORS.calories)}
+          </View>
+        </View>
+
+        {/* Tab Visibility Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📱 Kategorien ein-/ausblenden</Text>
           <Text style={styles.sectionHint}>
@@ -414,6 +426,7 @@ export default function SettingsScreen() {
             Du kannst sie jederzeit wieder aktivieren.
           </Text>
           <View style={styles.sectionCard}>
+            {renderTabToggle('show_dashboard_tab', 'Auswertung', 'analytics', COLORS.info)}
             {renderTabToggle('show_nutrition_tab', 'Ernährung', 'restaurant', COLORS.calories)}
             {renderTabToggle('show_sport_tab', 'Sport', 'fitness', COLORS.primary)}
             {renderTabToggle('show_vitals_tab', 'Vitaldaten', 'heart', COLORS.error)}
