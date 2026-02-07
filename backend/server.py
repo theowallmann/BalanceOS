@@ -199,6 +199,39 @@ class SportEntryCreate(BaseModel):
     custom_metrics: Optional[Dict[str, Any]] = {}
     manual_override: bool = True
 
+# ==================== FINANCE MODELS ====================
+
+class FinanceCategory(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str  # e.g., "Mittagessen", "Kino", "Transport"
+    period: str  # "daily", "weekly", "monthly"
+    budget: Optional[float] = None  # Optional budget limit
+    icon: Optional[str] = "wallet"  # Icon name
+    color: Optional[str] = "#4CAF50"  # Color for the category
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FinanceCategoryCreate(BaseModel):
+    name: str
+    period: str  # "daily", "weekly", "monthly"
+    budget: Optional[float] = None
+    icon: Optional[str] = "wallet"
+    color: Optional[str] = "#4CAF50"
+
+class FinanceEntry(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    category_id: str
+    amount: float
+    description: Optional[str] = None
+    date: str  # YYYY-MM-DD
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FinanceEntryCreate(BaseModel):
+    category_id: str
+    amount: float
+    description: Optional[str] = None
+    date: str  # YYYY-MM-DD
+
 class WorkoutCreate(BaseModel):
     date: str
     type: str
