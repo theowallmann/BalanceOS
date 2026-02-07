@@ -465,6 +465,48 @@ export default function BlockerScreen() {
           </View>
         )}
 
+        {/* Accessibility Permission Banner */}
+        {Platform.OS === 'android' && !accessibilityEnabled && !permissionBannerDismissed && activeTab === 'blocker' && (
+          <View style={styles.permissionBanner}>
+            <View style={styles.permissionBannerHeader}>
+              <Ionicons name="warning" size={24} color={COLORS.accent} />
+              <Text style={styles.permissionBannerTitle}>Berechtigung erforderlich</Text>
+              <TouchableOpacity 
+                style={styles.permissionBannerClose}
+                onPress={() => setPermissionBannerDismissed(true)}
+              >
+                <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.permissionBannerText}>
+              Damit die App-Sperre funktioniert, muss die App auf andere Apps zugreifen dürfen. 
+              Aktiviere den Bedienungshilfen-Dienst in den Android-Einstellungen.
+            </Text>
+            <View style={styles.permissionBannerSteps}>
+              <Text style={styles.permissionStepText}>1. Einstellungen → Bedienungshilfen</Text>
+              <Text style={styles.permissionStepText}>2. Installierte Dienste</Text>
+              <Text style={styles.permissionStepText}>3. Diese App aktivieren</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.permissionBannerButton}
+              onPress={openAccessibilitySettings}
+            >
+              <Ionicons name="settings-outline" size={18} color={COLORS.text} />
+              <Text style={styles.permissionBannerButtonText}>Einstellungen öffnen</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Accessibility Enabled Success Banner */}
+        {Platform.OS === 'android' && accessibilityEnabled && activeTab === 'blocker' && (
+          <View style={styles.successBanner}>
+            <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+            <Text style={styles.successBannerText}>
+              Bedienungshilfen aktiviert - App-Sperre ist einsatzbereit
+            </Text>
+          </View>
+        )}
+
         <ScrollView style={styles.scrollView}>
           {activeTab === 'blocker' ? (
             // App Blocker Content
