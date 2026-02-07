@@ -30,11 +30,39 @@ const COLORS = {
   success: '#4CAF50',
 };
 
+// Preloader component
+function DataPreloader({ children }: { children: React.ReactNode }) {
+  const { preloadAllData, isPreloaded, isLoading } = useDataStore();
+  const [showSplash, setShowSplash] = useState(true);
+  
+  useEffect(() => {
+    const loadData = async () => {
+      await preloadAllData();
+      // Minimum splash screen time for smooth UX
+      setTimeout(() => setShowSplash(false), 500);
+    };
+    loadData();
+  }, []);
+  
+  // Show loading indicator while preloading
+  if (showSplash && isLoading && !isPreloaded) {
+    return (
+      <View style={styles.splashContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.splashText}>Daten werden geladen...</Text>
+      </View>
+    );
+  }
+  
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
+          <DataPreloader>
           <View style={styles.container}>
             <Tabs
               screenOptions={{
