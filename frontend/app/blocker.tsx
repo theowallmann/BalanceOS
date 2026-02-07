@@ -466,7 +466,7 @@ export default function BlockerScreen() {
         )}
 
         {/* Accessibility Permission Banner */}
-        {Platform.OS === 'android' && !accessibilityEnabled && !permissionBannerDismissed && activeTab === 'blocker' && (
+        {!accessibilityEnabled && !permissionBannerDismissed && activeTab === 'blocker' && (
           <View style={styles.permissionBanner}>
             <View style={styles.permissionBannerHeader}>
               <Ionicons name="warning" size={24} color={COLORS.accent} />
@@ -498,7 +498,7 @@ export default function BlockerScreen() {
         )}
 
         {/* Accessibility Enabled Success Banner */}
-        {Platform.OS === 'android' && accessibilityEnabled && activeTab === 'blocker' && (
+        {accessibilityEnabled && activeTab === 'blocker' && (
           <View style={styles.successBanner}>
             <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
             <Text style={styles.successBannerText}>
