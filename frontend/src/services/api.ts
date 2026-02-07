@@ -81,4 +81,23 @@ export const notificationsApi = {
   toggle: (id: string) => api.put(`/notifications/${id}/toggle`),
 };
 
+// Finance API
+export const financeApi = {
+  getCategories: () => api.get('/finance/categories'),
+  createCategory: (data: any) => api.post('/finance/categories', data),
+  updateCategory: (id: string, data: any) => api.put(`/finance/categories/${id}`, data),
+  deleteCategory: (id: string) => api.delete(`/finance/categories/${id}`),
+  getEntries: (categoryId?: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (categoryId) params.append('category_id', categoryId);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return api.get(`/finance/entries?${params.toString()}`);
+  },
+  createEntry: (data: any) => api.post('/finance/entries', data),
+  deleteEntry: (id: string) => api.delete(`/finance/entries/${id}`),
+  getSummary: (categoryId: string) => api.get(`/finance/summary/${categoryId}`),
+  getAllSummaries: () => api.get('/finance/all-summaries'),
+};
+
 export default api;
