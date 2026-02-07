@@ -358,7 +358,7 @@ export default function ProfileScreen() {
                     value={formData.calories}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, calories: text }))}
                     keyboardType="numeric"
-                    placeholder="2000"
+                    placeholder="z.B. 2000"
                     placeholderTextColor={COLORS.textSecondary}
                     editable={isEditing}
                   />
@@ -370,7 +370,7 @@ export default function ProfileScreen() {
                     value={formData.protein}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, protein: text }))}
                     keyboardType="numeric"
-                    placeholder="50"
+                    placeholder="z.B. 50"
                     placeholderTextColor={COLORS.textSecondary}
                     editable={isEditing}
                   />
@@ -384,7 +384,7 @@ export default function ProfileScreen() {
                     value={formData.carbs}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, carbs: text }))}
                     keyboardType="numeric"
-                    placeholder="250"
+                    placeholder="z.B. 250"
                     placeholderTextColor={COLORS.textSecondary}
                     editable={isEditing}
                   />
@@ -396,7 +396,7 @@ export default function ProfileScreen() {
                     value={formData.fat}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, fat: text }))}
                     keyboardType="numeric"
-                    placeholder="65"
+                    placeholder="z.B. 65"
                     placeholderTextColor={COLORS.textSecondary}
                     editable={isEditing}
                   />
@@ -410,7 +410,7 @@ export default function ProfileScreen() {
                     value={formData.water}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, water: text }))}
                     keyboardType="numeric"
-                    placeholder="2000"
+                    placeholder="z.B. 2000"
                     placeholderTextColor={COLORS.textSecondary}
                     editable={isEditing}
                   />
