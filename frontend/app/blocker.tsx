@@ -95,6 +95,29 @@ export default function BlockerScreen() {
   const [unlockModalVisible, setUnlockModalVisible] = useState(false);
   const [selectedRule, setSelectedRule] = useState<any>(null);
   const [unlockPassword, setUnlockPassword] = useState('');
+  
+  // Accessibility Service State
+  const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
+  const [permissionBannerDismissed, setPermissionBannerDismissed] = useState(false);
+
+  // Check accessibility permission on mount and when app comes to foreground
+  useEffect(() => {
+    const checkPermission = async () => {
+      const enabled = await checkAccessibilityPermission();
+      setAccessibilityEnabled(enabled);
+    };
+    
+    checkPermission();
+    
+    // Re-check when app comes back to foreground (user might have enabled it)
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkPermission();
+      }
+    });
+    
+    return () => subscription.remove();
+  }, []);
 
   // Blocker form state
   const [blockerForm, setBlockerForm] = useState({
