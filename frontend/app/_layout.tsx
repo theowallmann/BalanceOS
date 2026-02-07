@@ -65,6 +65,7 @@ function MainTabs() {
 
   // Default: all tabs visible
   const tabSettings = {
+    show_dashboard_tab: profile?.tracking_settings?.show_dashboard_tab ?? true,
     show_nutrition_tab: profile?.tracking_settings?.show_nutrition_tab ?? true,
     show_sport_tab: profile?.tracking_settings?.show_sport_tab ?? true,
     show_vitals_tab: profile?.tracking_settings?.show_vitals_tab ?? true,
@@ -97,6 +98,7 @@ function MainTabs() {
         name="index"
         options={{
           title: 'Dashboard',
+          href: tabSettings.show_dashboard_tab ? '/' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="analytics" size={size} color={color} />
           ),
