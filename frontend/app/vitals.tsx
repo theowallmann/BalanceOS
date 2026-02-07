@@ -26,6 +26,7 @@ export default function VitalsScreen() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
+  const [bmrModalVisible, setBmrModalVisible] = useState(false);
   const [editField, setEditField] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -49,6 +50,86 @@ export default function VitalsScreen() {
     queryKey: ['profile'],
     queryFn: () => profileApi.get().then(res => res.data),
   });
+
+  // Calculate age from birth_date
+  const calculateAge = (birthDate: string | null): number | null => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // BMR Calculation - Mifflin-St Jeor (without body fat)
+  const calculateBMR_MifflinStJeor = (): { value: number | null; formula: string; missingData: string[] } => {
+    const weight = vitals?.weight;
+    const height = profile?.height;
+    const age = calculateAge(profile?.birth_date);
+    const gender = profile?.gender;
+    
+    const missingData: string[] = [];
+    if (!weight) missingData.push('Gewicht');
+    if (!height) missingData.push('Größe (Profil)');
+    if (!age) missingData.push('Geburtsdatum (Profil)');
+    if (!gender) missingData.push('Geschlecht (Profil)');
+    
+    if (missingData.length > 0) {
+      return { value: null, formula: '', missingData };
+    }
+    
+    // Mifflin-St Jeor Equation
+    // Men: BMR = 10 × weight(kg) + 6.25 × height(cm) - 5 × age(y) + 5
+    // Women: BMR = 10 × weight(kg) + 6.25 × height(cm) - 5 × age(y) - 161
+    const genderOffset = gender === 'female' ? -161 : 5;
+    const bmr = Math.round(10 * weight! + 6.25 * height! - 5 * age! + genderOffset);
+    
+    const formula = `10 × ${weight}kg + 6,25 × ${height}cm - 5 × ${age}J ${gender === 'female' ? '- 161' : '+ 5'} = ${bmr} kcal`;
+    
+    return { value: bmr, formula, missingData: [] };
+  };
+
+  // BMR Calculation - Katch-McArdle (with body fat)
+  const calculateBMR_KatchMcArdle = (): { value: number | null; formula: string; missingData: string[] } => {
+    const weight = vitals?.weight;
+    const bodyFat = vitals?.body_fat;
+    
+    const missingData: string[] = [];
+    if (!weight) missingData.push('Gewicht');
+    if (!bodyFat) missingData.push('Körperfett');
+    
+    if (missingData.length > 0) {
+      return { value: null, formula: '', missingData };
+    }
+    
+    // Katch-McArdle Equation
+    // BMR = 370 + 21.6 × LBM (Lean Body Mass)
+    // LBM = weight × (1 - body_fat/100)
+    const lbm = weight! * (1 - bodyFat! / 100);
+    const bmr = Math.round(370 + 21.6 * lbm);
+    
+    const formula = `LBM = ${weight}kg × (1 - ${bodyFat}%/100) = ${lbm.toFixed(1)}kg\nBMR = 370 + 21,6 × ${lbm.toFixed(1)} = ${bmr} kcal`;
+    
+    return { value: bmr, formula, missingData: [] };
+  };
+
+  // Calculate NEAT (Non-Exercise Activity Thermogenesis)
+  // NEAT = BMR × Activity Factor - BMR
+  // Activity Factor: 1.2 (sedentary) to 1.55 (moderate)
+  const calculateNEAT = (bmr: number | null): number | null => {
+    if (!bmr) return null;
+    // Using moderate activity factor of 1.375
+    const tdee = bmr * 1.375;
+    return Math.round(tdee - bmr);
+  };
+
+  const bmrMifflin = calculateBMR_MifflinStJeor();
+  const bmrKatch = calculateBMR_KatchMcArdle();
+  const bestBMR = bmrKatch.value || bmrMifflin.value;
+  const neat = calculateNEAT(bestBMR);
 
   useFocusEffect(
     useCallback(() => {
