@@ -18,6 +18,7 @@ import { useLanguage } from '../src/hooks/useLanguage';
 import { profileApi } from '../src/services/api';
 
 interface TrackingSettings {
+  // Nutrition
   track_calories: boolean;
   track_protein: boolean;
   track_carbs: boolean;
@@ -26,36 +27,182 @@ interface TrackingSettings {
   track_sugar: boolean;
   track_salt: boolean;
   track_water: boolean;
+  // Vitals
   track_weight: boolean;
   track_body_fat: boolean;
   track_sleep: boolean;
   track_sleep_quality: boolean;
   track_morning_energy: boolean;
   track_resting_heart_rate: boolean;
+  // Sport
   track_steps: boolean;
   track_workouts: boolean;
   track_calories_burned: boolean;
+  // Tab Visibility
+  show_nutrition_tab: boolean;
+  show_sport_tab: boolean;
+  show_vitals_tab: boolean;
+  show_finance_tab: boolean;
+  show_blocker_tab: boolean;
 }
 
 const DEFAULT_SETTINGS: TrackingSettings = {
+  // Nutrition - all on by default
   track_calories: true,
   track_protein: true,
   track_carbs: true,
   track_fat: true,
-  track_fiber: false,
-  track_sugar: false,
-  track_salt: false,
+  track_fiber: true,
+  track_sugar: true,
+  track_salt: true,
   track_water: true,
+  // Vitals - all on by default
   track_weight: true,
-  track_body_fat: false,
+  track_body_fat: true,
   track_sleep: true,
-  track_sleep_quality: false,
-  track_morning_energy: false,
-  track_resting_heart_rate: false,
+  track_sleep_quality: true,
+  track_morning_energy: true,
+  track_resting_heart_rate: true,
+  // Sport - all on by default
   track_steps: true,
   track_workouts: true,
   track_calories_burned: true,
+  // Tab Visibility - all on by default
+  show_nutrition_tab: true,
+  show_sport_tab: true,
+  show_vitals_tab: true,
+  show_finance_tab: true,
+  show_blocker_tab: true,
 };
+
+// Presets for quick selection
+const PRESETS = [
+  {
+    key: 'weight_loss',
+    label: 'Gewicht abnehmen',
+    icon: 'trending-down',
+    color: COLORS.error,
+    settings: {
+      track_calories: true,
+      track_protein: true,
+      track_carbs: true,
+      track_fat: true,
+      track_fiber: false,
+      track_sugar: false,
+      track_salt: false,
+      track_water: true,
+      track_weight: true,
+      track_body_fat: true,
+      track_sleep: true,
+      track_sleep_quality: false,
+      track_morning_energy: false,
+      track_resting_heart_rate: false,
+      track_steps: true,
+      track_workouts: true,
+      track_calories_burned: true,
+    },
+  },
+  {
+    key: 'muscle_building',
+    label: 'Muskelaufbau',
+    icon: 'barbell',
+    color: COLORS.primary,
+    settings: {
+      track_calories: true,
+      track_protein: true,
+      track_carbs: true,
+      track_fat: true,
+      track_fiber: false,
+      track_sugar: false,
+      track_salt: false,
+      track_water: true,
+      track_weight: true,
+      track_body_fat: true,
+      track_sleep: true,
+      track_sleep_quality: true,
+      track_morning_energy: true,
+      track_resting_heart_rate: false,
+      track_steps: false,
+      track_workouts: true,
+      track_calories_burned: true,
+    },
+  },
+  {
+    key: 'vitals_only',
+    label: 'Nur Vitaldaten',
+    icon: 'heart',
+    color: COLORS.secondary,
+    settings: {
+      track_calories: false,
+      track_protein: false,
+      track_carbs: false,
+      track_fat: false,
+      track_fiber: false,
+      track_sugar: false,
+      track_salt: false,
+      track_water: false,
+      track_weight: true,
+      track_body_fat: true,
+      track_sleep: true,
+      track_sleep_quality: true,
+      track_morning_energy: true,
+      track_resting_heart_rate: true,
+      track_steps: true,
+      track_workouts: false,
+      track_calories_burned: false,
+    },
+  },
+  {
+    key: 'minimal',
+    label: 'Minimalistisch',
+    icon: 'remove-circle',
+    color: COLORS.textSecondary,
+    settings: {
+      track_calories: true,
+      track_protein: false,
+      track_carbs: false,
+      track_fat: false,
+      track_fiber: false,
+      track_sugar: false,
+      track_salt: false,
+      track_water: false,
+      track_weight: true,
+      track_body_fat: false,
+      track_sleep: false,
+      track_sleep_quality: false,
+      track_morning_energy: false,
+      track_resting_heart_rate: false,
+      track_steps: true,
+      track_workouts: false,
+      track_calories_burned: false,
+    },
+  },
+  {
+    key: 'all',
+    label: 'Alles tracken',
+    icon: 'checkmark-done',
+    color: COLORS.success,
+    settings: {
+      track_calories: true,
+      track_protein: true,
+      track_carbs: true,
+      track_fat: true,
+      track_fiber: true,
+      track_sugar: true,
+      track_salt: true,
+      track_water: true,
+      track_weight: true,
+      track_body_fat: true,
+      track_sleep: true,
+      track_sleep_quality: true,
+      track_morning_energy: true,
+      track_resting_heart_rate: true,
+      track_steps: true,
+      track_workouts: true,
+      track_calories_burned: true,
+    },
+  },
+];
 
 export default function SettingsScreen() {
   const { t, language, switchLanguage } = useLanguage();
@@ -65,6 +212,7 @@ export default function SettingsScreen() {
   
   const [settings, setSettings] = useState<TrackingSettings>(DEFAULT_SETTINGS);
   const [hasChanges, setHasChanges] = useState(false);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -98,6 +246,16 @@ export default function SettingsScreen() {
       [key]: !prev[key],
     }));
     setHasChanges(true);
+    setActivePreset(null);
+  };
+
+  const handlePresetSelect = (preset: typeof PRESETS[0]) => {
+    setSettings(prev => ({
+      ...prev,
+      ...preset.settings,
+    }));
+    setHasChanges(true);
+    setActivePreset(preset.key);
   };
 
   const handleSave = () => {
@@ -118,6 +276,33 @@ export default function SettingsScreen() {
           <Ionicons name={icon as any} size={20} color={color} />
         </View>
         <Text style={styles.toggleLabel}>{label}</Text>
+      </View>
+      <Switch
+        value={settings[key]}
+        onValueChange={() => handleToggle(key)}
+        trackColor={{ false: COLORS.surfaceLight, true: COLORS.primary + '60' }}
+        thumbColor={settings[key] ? COLORS.primary : COLORS.textSecondary}
+      />
+    </View>
+  );
+
+  const renderTabToggle = (
+    key: keyof TrackingSettings,
+    label: string,
+    icon: string,
+    color: string
+  ) => (
+    <View style={styles.tabToggleRow}>
+      <View style={styles.toggleLeft}>
+        <View style={[styles.toggleIcon, { backgroundColor: color + '20' }]}>
+          <Ionicons name={icon as any} size={20} color={color} />
+        </View>
+        <View>
+          <Text style={styles.toggleLabel}>{label}</Text>
+          <Text style={styles.tabToggleHint}>
+            {settings[key] ? 'Sichtbar in der Navigation' : 'Ausgeblendet'}
+          </Text>
+        </View>
       </View>
       <Switch
         value={settings[key]}
@@ -152,14 +337,52 @@ export default function SettingsScreen() {
         style={styles.scrollView}
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
+        {/* Quick Presets - NOW AT THE TOP */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⚡ Schnellauswahl</Text>
+          <Text style={styles.sectionHint}>
+            Wähle ein Preset, das zu deinem Ziel passt
+          </Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.presetsScroll}
+            contentContainerStyle={styles.presetsScrollContent}
+          >
+            {PRESETS.map((preset) => (
+              <TouchableOpacity 
+                key={preset.key}
+                style={[
+                  styles.presetCard,
+                  activePreset === preset.key && styles.presetCardActive,
+                ]}
+                onPress={() => handlePresetSelect(preset)}
+              >
+                <View style={[styles.presetIcon, { backgroundColor: preset.color + '20' }]}>
+                  <Ionicons name={preset.icon as any} size={24} color={preset.color} />
+                </View>
+                <Text style={[
+                  styles.presetLabel,
+                  activePreset === preset.key && styles.presetLabelActive,
+                ]}>
+                  {preset.label}
+                </Text>
+                {activePreset === preset.key && (
+                  <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} style={styles.presetCheck} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <Text style={styles.description}>
-          Wähle aus, welche Daten du tracken möchtest. Nicht aktivierte Kategorien werden 
-          im Dashboard und in der Auswertung ausgeblendet.
+          Passe die einzelnen Tracking-Optionen an. Deaktivierte Metriken werden 
+          in der App nicht angezeigt.
         </Text>
 
         {/* Nutrition Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ernährung</Text>
+          <Text style={styles.sectionTitle}>🍎 Ernährung</Text>
           <View style={styles.sectionCard}>
             {renderToggle('track_calories', t('calories'), 'flame', COLORS.calories)}
             {renderToggle('track_protein', t('protein'), 'nutrition', COLORS.protein)}
@@ -174,7 +397,7 @@ export default function SettingsScreen() {
 
         {/* Vitals Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Vitaldaten</Text>
+          <Text style={styles.sectionTitle}>❤️ Vitaldaten</Text>
           <View style={styles.sectionCard}>
             {renderToggle('track_weight', t('weight'), 'scale', COLORS.info)}
             {renderToggle('track_body_fat', t('bodyFat'), 'body', COLORS.secondary)}
@@ -187,7 +410,7 @@ export default function SettingsScreen() {
 
         {/* Sport Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('sport')}</Text>
+          <Text style={styles.sectionTitle}>🏃 {t('sport')}</Text>
           <View style={styles.sectionCard}>
             {renderToggle('track_steps', t('steps'), 'footsteps', COLORS.primary)}
             {renderToggle('track_workouts', t('workouts'), 'fitness', COLORS.primary)}
@@ -195,90 +418,19 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Quick Presets */}
+        {/* Tab Visibility Section - NEW */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Schnellauswahl</Text>
-          <View style={styles.presetsRow}>
-            <TouchableOpacity 
-              style={styles.presetButton}
-              onPress={() => {
-                setSettings({
-                  ...DEFAULT_SETTINGS,
-                  track_calories: true,
-                  track_protein: false,
-                  track_carbs: false,
-                  track_fat: false,
-                  track_weight: true,
-                });
-                setHasChanges(true);
-              }}
-            >
-              <Ionicons name="trending-down" size={20} color={COLORS.primary} />
-              <Text style={styles.presetText}>Nur Abnehmen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.presetButton}
-              onPress={() => {
-                setSettings({
-                  ...DEFAULT_SETTINGS,
-                  track_calories: true,
-                  track_protein: true,
-                  track_weight: true,
-                  track_workouts: true,
-                });
-                setHasChanges(true);
-              }}
-            >
-              <Ionicons name="barbell" size={20} color={COLORS.primary} />
-              <Text style={styles.presetText}>Muskelaufbau</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.presetsRow}>
-            <TouchableOpacity 
-              style={styles.presetButton}
-              onPress={() => {
-                setSettings({
-                  ...DEFAULT_SETTINGS,
-                  track_water: true,
-                  track_calories: false,
-                  track_protein: false,
-                  track_carbs: false,
-                  track_fat: false,
-                });
-                setHasChanges(true);
-              }}
-            >
-              <Ionicons name="water" size={20} color={COLORS.water} />
-              <Text style={styles.presetText}>Nur Trinken</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.presetButton}
-              onPress={() => {
-                setSettings({
-                  track_calories: true,
-                  track_protein: true,
-                  track_carbs: true,
-                  track_fat: true,
-                  track_fiber: true,
-                  track_sugar: true,
-                  track_salt: true,
-                  track_water: true,
-                  track_weight: true,
-                  track_body_fat: true,
-                  track_sleep: true,
-                  track_sleep_quality: true,
-                  track_morning_energy: true,
-                  track_resting_heart_rate: true,
-                  track_steps: true,
-                  track_workouts: true,
-                  track_calories_burned: true,
-                });
-                setHasChanges(true);
-              }}
-            >
-              <Ionicons name="checkmark-done" size={20} color={COLORS.success} />
-              <Text style={styles.presetText}>Alles tracken</Text>
-            </TouchableOpacity>
+          <Text style={styles.sectionTitle}>📱 Kategorien ein-/ausblenden</Text>
+          <Text style={styles.sectionHint}>
+            Blende ganze Bereiche aus, die du nicht brauchst. 
+            Du kannst sie jederzeit wieder aktivieren.
+          </Text>
+          <View style={styles.sectionCard}>
+            {renderTabToggle('show_nutrition_tab', 'Ernährung', 'restaurant', COLORS.calories)}
+            {renderTabToggle('show_sport_tab', 'Sport', 'fitness', COLORS.primary)}
+            {renderTabToggle('show_vitals_tab', 'Vitaldaten', 'heart', COLORS.error)}
+            {renderTabToggle('show_finance_tab', 'Finanzen', 'wallet', COLORS.accent)}
+            {renderTabToggle('show_blocker_tab', 'App-Sperre', 'lock-closed', COLORS.secondary)}
           </View>
         </View>
       </ScrollView>
@@ -338,19 +490,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
-    marginTop: 16,
     marginBottom: 24,
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  sectionHint: {
+    fontSize: 13,
     color: COLORS.textSecondary,
     marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    lineHeight: 18,
   },
   sectionCard: {
     backgroundColor: COLORS.surface,
@@ -369,6 +524,7 @@ const styles = StyleSheet.create({
   toggleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   toggleIcon: {
     width: 36,
@@ -382,25 +538,62 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
   },
-  presetsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  presetButton: {
-    flex: 1,
+  tabToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    justifyContent: 'space-between',
     paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceLight,
   },
-  presetText: {
-    fontSize: 14,
-    fontWeight: '500',
+  tabToggleHint: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  // Presets Styles
+  presetsScroll: {
+    marginHorizontal: -16,
+  },
+  presetsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  presetCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    width: 110,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  presetCardActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  presetIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  presetLabel: {
+    fontSize: 12,
+    fontWeight: '600',
     color: COLORS.text,
+    textAlign: 'center',
+  },
+  presetLabelActive: {
+    color: COLORS.primary,
+  },
+  presetCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
   saveContainer: {
     position: 'absolute',
