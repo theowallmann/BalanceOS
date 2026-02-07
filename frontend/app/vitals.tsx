@@ -499,6 +499,129 @@ export default function VitalsScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* BMR/NEAT Calculation Modal */}
+        <Modal
+          visible={bmrModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setBmrModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.bmrModalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>BMR & NEAT Berechnung</Text>
+                <TouchableOpacity onPress={() => setBmrModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.bmrModalScroll}>
+                {/* Mifflin-St Jeor (without body fat) */}
+                <View style={styles.calculationSection}>
+                  <View style={styles.calculationHeader}>
+                    <Ionicons name="calculator" size={20} color={COLORS.primary} />
+                    <Text style={styles.calculationTitle}>Mifflin-St Jeor Formel</Text>
+                    <Text style={styles.calculationSubtitle}>(ohne Körperfett)</Text>
+                  </View>
+                  
+                  {bmrMifflin.value ? (
+                    <>
+                      <View style={styles.formulaBox}>
+                        <Text style={styles.formulaText}>
+                          BMR = 10 × Gewicht + 6,25 × Größe - 5 × Alter {profile?.gender === 'female' ? '- 161' : '+ 5'}
+                        </Text>
+                      </View>
+                      <View style={styles.calculationResult}>
+                        <Text style={styles.calculationFormula}>{bmrMifflin.formula}</Text>
+                        <Text style={styles.resultValue}>{bmrMifflin.value} kcal/Tag</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.missingDataBox}>
+                      <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
+                      <Text style={styles.missingDataBoxText}>
+                        Fehlende Daten: {bmrMifflin.missingData.join(', ')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Katch-McArdle (with body fat) */}
+                <View style={styles.calculationSection}>
+                  <View style={styles.calculationHeader}>
+                    <Ionicons name="calculator" size={20} color={COLORS.secondary} />
+                    <Text style={styles.calculationTitle}>Katch-McArdle Formel</Text>
+                    <Text style={styles.calculationSubtitle}>(mit Körperfett - genauer)</Text>
+                  </View>
+                  
+                  {bmrKatch.value ? (
+                    <>
+                      <View style={styles.formulaBox}>
+                        <Text style={styles.formulaText}>
+                          LBM = Gewicht × (1 - Körperfett/100){'\n'}
+                          BMR = 370 + 21,6 × LBM
+                        </Text>
+                      </View>
+                      <View style={styles.calculationResult}>
+                        <Text style={styles.calculationFormula}>{bmrKatch.formula}</Text>
+                        <Text style={styles.resultValue}>{bmrKatch.value} kcal/Tag</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.missingDataBox}>
+                      <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
+                      <Text style={styles.missingDataBoxText}>
+                        Fehlende Daten: {bmrKatch.missingData.join(', ')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* NEAT Explanation */}
+                <View style={styles.calculationSection}>
+                  <View style={styles.calculationHeader}>
+                    <Ionicons name="flame" size={20} color={COLORS.calories} />
+                    <Text style={styles.calculationTitle}>NEAT</Text>
+                    <Text style={styles.calculationSubtitle}>(Non-Exercise Activity Thermogenesis)</Text>
+                  </View>
+                  
+                  <View style={styles.formulaBox}>
+                    <Text style={styles.formulaText}>
+                      NEAT = BMR × Aktivitätsfaktor - BMR{'\n'}
+                      (Aktivitätsfaktor: 1,375 für moderate Aktivität)
+                    </Text>
+                  </View>
+                  
+                  {neat ? (
+                    <View style={styles.calculationResult}>
+                      <Text style={styles.calculationFormula}>
+                        NEAT = {bestBMR} × 1,375 - {bestBMR} = {neat} kcal
+                      </Text>
+                      <Text style={styles.resultValue}>{neat} kcal/Tag</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.missingDataBox}>
+                      <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
+                      <Text style={styles.missingDataBoxText}>
+                        BMR wird benötigt um NEAT zu berechnen
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Info Box */}
+                <View style={styles.infoBox}>
+                  <Ionicons name="information-circle" size={20} color={COLORS.info} />
+                  <Text style={styles.infoBoxText}>
+                    BMR (Basal Metabolic Rate) ist dein Grundumsatz - die Energie die dein Körper in Ruhe verbraucht.
+                    NEAT sind die Kalorien die du durch Alltagsaktivitäten (nicht Sport) verbrauchst.
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
