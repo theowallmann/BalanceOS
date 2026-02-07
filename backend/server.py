@@ -945,6 +945,138 @@ async def get_period_analytics(period: str):
         "tracking_settings": tracking_settings,
     }
 
+# ==================== FINANCE ENDPOINTS ====================
+
+@api_router.get("/finance/categories")
+async def get_finance_categories():
+    """Get all finance categories"""
+    categories = await db.finance_categories.find({"is_active": True}).to_list(100)
+    for cat in categories:
+        cat.pop('_id', None)
+    return categories
+
+@api_router.post("/finance/categories")
+async def create_finance_category(category: FinanceCategoryCreate):
+    """Create a new finance category"""
+    new_cat = FinanceCategory(**category.dict())
+    await db.finance_categories.insert_one(new_cat.dict())
+    return new_cat.dict()
+
+@api_router.put("/finance/categories/{cat_id}")
+async def update_finance_category(cat_id: str, update: Dict):
+    """Update a finance category"""
+    await db.finance_categories.update_one({"id": cat_id}, {"$set": update})
+    updated = await db.finance_categories.find_one({"id": cat_id})
+    if updated:
+        updated.pop('_id', None)
+        return updated
+    raise HTTPException(status_code=404, detail="Kategorie nicht gefunden")
+
+@api_router.delete("/finance/categories/{cat_id}")
+async def delete_finance_category(cat_id: str):
+    """Deactivate a finance category"""
+    await db.finance_categories.update_one({"id": cat_id}, {"$set": {"is_active": False}})
+    return {"message": "Kategorie gelöscht"}
+
+@api_router.get("/finance/entries")
+async def get_finance_entries(category_id: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None):
+    """Get finance entries with optional filters"""
+    query = {}
+    if category_id:
+        query["category_id"] = category_id
+    if start_date and end_date:
+        query["date"] = {"$gte": start_date, "$lte": end_date}
+    elif start_date:
+        query["date"] = {"$gte": start_date}
+    elif end_date:
+        query["date"] = {"$lte": end_date}
+    
+    entries = await db.finance_entries.find(query).sort("date", -1).to_list(1000)
+    for entry in entries:
+        entry.pop('_id', None)
+    return entries
+
+@api_router.post("/finance/entries")
+async def create_finance_entry(entry: FinanceEntryCreate):
+    """Create a new finance entry"""
+    new_entry = FinanceEntry(**entry.dict())
+    await db.finance_entries.insert_one(new_entry.dict())
+    return new_entry.dict()
+
+@api_router.delete("/finance/entries/{entry_id}")
+async def delete_finance_entry(entry_id: str):
+    """Delete a finance entry"""
+    result = await db.finance_entries.delete_one({"id": entry_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Eintrag nicht gefunden")
+    return {"message": "Eintrag gelöscht"}
+
+@api_router.get("/finance/summary/{category_id}")
+async def get_finance_summary(category_id: str):
+    """Get summary for a specific category based on its period"""
+    from datetime import timedelta
+    
+    category = await db.finance_categories.find_one({"id": category_id})
+    if not category:
+        raise HTTPException(status_code=404, detail="Kategorie nicht gefunden")
+    
+    today = datetime.utcnow().date()
+    period = category.get('period', 'monthly')
+    
+    # Calculate period start date
+    if period == 'daily':
+        start_date = today
+    elif period == 'weekly':
+        # Start of current week (Monday)
+        start_date = today - timedelta(days=today.weekday())
+    else:  # monthly
+        start_date = today.replace(day=1)
+    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = today.strftime("%Y-%m-%d")
+    
+    # Get entries for the period
+    entries = await db.finance_entries.find({
+        "category_id": category_id,
+        "date": {"$gte": start_str, "$lte": end_str}
+    }).sort("date", -1).to_list(1000)
+    
+    for entry in entries:
+        entry.pop('_id', None)
+    
+    total_spent = sum(e.get('amount', 0) for e in entries)
+    budget = category.get('budget')
+    remaining = budget - total_spent if budget else None
+    
+    # Get dates with entries
+    days_with_entries = len(set(e.get('date') for e in entries))
+    
+    return {
+        "category": {k: v for k, v in category.items() if k != '_id'},
+        "period_start": start_str,
+        "period_end": end_str,
+        "total_spent": total_spent,
+        "budget": budget,
+        "remaining": remaining,
+        "over_budget": remaining < 0 if remaining is not None else False,
+        "entries": entries,
+        "days_with_entries": days_with_entries,
+        "entry_count": len(entries),
+    }
+
+@api_router.get("/finance/all-summaries")
+async def get_all_finance_summaries():
+    """Get summaries for all active categories"""
+    categories = await db.finance_categories.find({"is_active": True}).to_list(100)
+    summaries = []
+    
+    for category in categories:
+        cat_id = category.get('id')
+        summary = await get_finance_summary(cat_id)
+        summaries.append(summary)
+    
+    return summaries
+
 # ==================== FITBIT ENDPOINTS ====================
 
 @api_router.get("/fitbit/auth-url")
