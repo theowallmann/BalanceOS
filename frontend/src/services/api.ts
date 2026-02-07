@@ -100,4 +100,14 @@ export const financeApi = {
   getAllSummaries: () => api.get('/finance/all-summaries'),
 };
 
+// Export API
+export const exportApi = {
+  getCsv: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return api.get(`/export/csv?${params.toString()}`);
+  },
+};
+
 export default api;
