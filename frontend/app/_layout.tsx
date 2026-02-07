@@ -3,15 +3,16 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useDataStore } from '../src/store';
+import { profileApi } from '../src/services/api';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (renamed from cacheTime)
+      gcTime: 1000 * 60 * 30, // 30 minutes
       refetchOnWindowFocus: false,
     },
   },
@@ -38,13 +39,11 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadData = async () => {
       await preloadAllData();
-      // Minimum splash screen time for smooth UX
       setTimeout(() => setShowSplash(false), 500);
     };
     loadData();
   }, []);
   
-  // Show loading indicator while preloading
   if (showSplash && isLoading && !isPreloaded) {
     return (
       <View style={styles.splashContainer}>
@@ -57,105 +56,130 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Main Tab Navigation with dynamic visibility
+function MainTabs() {
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => profileApi.get().then(res => res.data),
+  });
+
+  // Default: all tabs visible
+  const tabSettings = {
+    show_nutrition_tab: profile?.tracking_settings?.show_nutrition_tab ?? true,
+    show_sport_tab: profile?.tracking_settings?.show_sport_tab ?? true,
+    show_vitals_tab: profile?.tracking_settings?.show_vitals_tab ?? true,
+    show_finance_tab: profile?.tracking_settings?.show_finance_tab ?? true,
+    show_blocker_tab: profile?.tracking_settings?.show_blocker_tab ?? true,
+  };
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.surfaceLight,
+          borderTopWidth: 1,
+          height: Platform.OS === 'android' ? 80 : 88,
+          paddingBottom: Platform.OS === 'android' ? 24 : 28,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+        },
+        tabBarHideOnKeyboard: true,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="analytics" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          title: 'Ernährung',
+          href: tabSettings.show_nutrition_tab ? '/nutrition' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="restaurant" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="sport"
+        options={{
+          title: 'Sport',
+          href: tabSettings.show_sport_tab ? '/sport' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="fitness" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="vitals"
+        options={{
+          title: 'Vitaldaten',
+          href: tabSettings.show_vitals_tab ? '/vitals' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="heart" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="finance"
+        options={{
+          title: 'Finanzen',
+          href: tabSettings.show_finance_tab ? '/finance' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="blocker"
+        options={{
+          title: 'Sperre',
+          href: tabSettings.show_blocker_tab ? '/blocker' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="lock-closed" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null, // Always hidden from tab bar
+        }}
+      />
+    </Tabs>
+  );
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <DataPreloader>
-          <View style={styles.container}>
-            <Tabs
-              screenOptions={{
-                headerShown: false,
-                tabBarStyle: {
-                  backgroundColor: COLORS.surface,
-                  borderTopColor: COLORS.surfaceLight,
-                  borderTopWidth: 1,
-                  // Android needs more padding for navigation bar
-                  height: Platform.OS === 'android' ? 80 : 88,
-                  paddingBottom: Platform.OS === 'android' ? 24 : 28,
-                  paddingTop: 8,
-                },
-                tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: COLORS.textSecondary,
-                tabBarLabelStyle: {
-                  fontSize: 10,
-                  fontWeight: '600',
-                },
-                tabBarHideOnKeyboard: true,
-              }}
-            >
-              <Tabs.Screen
-                name="index"
-                options={{
-                  title: 'Dashboard',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="analytics" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="nutrition"
-                options={{
-                  title: 'Ernährung',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="restaurant" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="sport"
-                options={{
-                  title: 'Sport',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="fitness" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="vitals"
-                options={{
-                  title: 'Vitaldaten',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="heart" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="finance"
-                options={{
-                  title: 'Finanzen',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="wallet" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="blocker"
-                options={{
-                  title: 'Sperre',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="lock-closed" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="profile"
-                options={{
-                  title: 'Profil',
-                  tabBarIcon: ({ color, size }) => (
-                    <Ionicons name="person" size={size} color={color} />
-                  ),
-                }}
-              />
-              <Tabs.Screen
-                name="settings"
-                options={{
-                  href: null, // Hide from tab bar
-                }}
-              />
-            </Tabs>
-          </View>
+            <View style={styles.container}>
+              <MainTabs />
+            </View>
           </DataPreloader>
         </SafeAreaProvider>
       </QueryClientProvider>
