@@ -260,24 +260,38 @@ export default function VitalsScreen() {
                 </View>
               )}
 
-              {/* Metabolic Data */}
-              {(vitals?.basal_metabolic_rate || vitals?.neat) && (
+              {/* BMR & NEAT Section - always show if tracking enabled */}
+              {profile?.tracking_settings?.track_bmr_neat !== false && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Stoffwechsel</Text>
-                  <View style={styles.metabolicCard}>
+                  <TouchableOpacity 
+                    style={styles.metabolicCard}
+                    onPress={() => setBmrModalVisible(true)}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.metabolicItem}>
                       <Ionicons name="flash" size={28} color={COLORS.accent} />
-                      <Text style={styles.metabolicValue}>{vitals?.basal_metabolic_rate || '-'}</Text>
-                      <Text style={styles.metabolicLabel}>{t('bmr')} ({t('kcal')})</Text>
+                      <Text style={styles.metabolicValue}>{bestBMR || '-'}</Text>
+                      <Text style={styles.metabolicLabel}>BMR (kcal)</Text>
                     </View>
-                    {vitals?.neat && (
-                      <View style={styles.metabolicItem}>
-                        <Ionicons name="flame" size={28} color={COLORS.calories} />
-                        <Text style={styles.metabolicValue}>{vitals?.neat}</Text>
-                        <Text style={styles.metabolicLabel}>{t('neat')} ({t('kcal')})</Text>
-                      </View>
-                    )}
-                  </View>
+                    <View style={styles.metabolicItem}>
+                      <Ionicons name="flame" size={28} color={COLORS.calories} />
+                      <Text style={styles.metabolicValue}>{neat || '-'}</Text>
+                      <Text style={styles.metabolicLabel}>NEAT (kcal)</Text>
+                    </View>
+                    <View style={styles.metabolicInfoIcon}>
+                      <Ionicons name="information-circle-outline" size={20} color={COLORS.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                  {/* Missing data warning */}
+                  {!bestBMR && (
+                    <View style={styles.missingDataBanner}>
+                      <Ionicons name="alert-circle-outline" size={16} color={COLORS.accent} />
+                      <Text style={styles.missingDataText}>
+                        Fehlende Daten: {[...new Set([...bmrMifflin.missingData, ...bmrKatch.missingData])].join(', ')}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
 
