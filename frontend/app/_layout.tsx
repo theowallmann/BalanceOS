@@ -156,6 +156,7 @@ export default function RootLayout() {
               />
             </Tabs>
           </View>
+          </DataPreloader>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
@@ -166,5 +167,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  splashContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  splashText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
 });
