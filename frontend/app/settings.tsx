@@ -570,6 +570,12 @@ const styles = StyleSheet.create({
   presetLabelActive: {
     color: COLORS.primary,
   },
+  presetDescription: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
   presetCheck: {
     position: 'absolute',
     top: 8,
