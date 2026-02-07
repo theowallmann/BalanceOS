@@ -34,14 +34,10 @@ export default function RootLayout() {
                   backgroundColor: COLORS.surface,
                   borderTopColor: COLORS.surfaceLight,
                   borderTopWidth: 1,
-                  height: Platform.OS === 'ios' ? 88 : 70,
-                  paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+                  // Android needs more padding for navigation bar
+                  height: Platform.OS === 'android' ? 80 : 88,
+                  paddingBottom: Platform.OS === 'android' ? 24 : 28,
                   paddingTop: 8,
-                  // Ensure tab bar is above Android navigation
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
                 },
                 tabBarActiveTintColor: COLORS.primary,
                 tabBarInactiveTintColor: COLORS.textSecondary,
@@ -49,7 +45,6 @@ export default function RootLayout() {
                   fontSize: 10,
                   fontWeight: '600',
                 },
-                // Add safe area handling
                 tabBarHideOnKeyboard: true,
               }}
             >
