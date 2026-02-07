@@ -75,24 +75,24 @@ class TrackingSettings(BaseModel):
 
 # Profile Models
 class NutrientGoals(BaseModel):
-    calories: Optional[int] = 2000
-    protein: Optional[int] = 50  # grams
-    carbs: Optional[int] = 250  # grams
-    fat: Optional[int] = 65  # grams
-    fiber: Optional[int] = 25  # grams
-    sugar: Optional[int] = 50  # grams
-    salt: Optional[float] = 6  # grams
-    water: Optional[int] = 2000  # ml
+    calories: Optional[int] = None
+    protein: Optional[int] = None  # grams
+    carbs: Optional[int] = None  # grams
+    fat: Optional[int] = None  # grams
+    fiber: Optional[int] = None  # grams
+    sugar: Optional[int] = None  # grams
+    salt: Optional[float] = None  # grams
+    water: Optional[int] = None  # ml
 
 class VitalGoals(BaseModel):
     target_weight: Optional[float] = None  # kg
     target_body_fat: Optional[float] = None  # %
-    sleep_hours: Optional[float] = 8
-    resting_heart_rate: Optional[int] = 60
+    sleep_hours: Optional[float] = None
+    resting_heart_rate: Optional[int] = None
 
 class SportGoals(BaseModel):
-    daily_steps: Optional[int] = 10000
-    weekly_workouts: Optional[int] = 3
+    daily_steps: Optional[int] = None
+    weekly_workouts: Optional[int] = None
     custom_goals: Optional[List[Dict[str, Any]]] = []
 
 class Profile(BaseModel):
