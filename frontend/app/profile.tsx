@@ -219,6 +219,28 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const response = await exportApi.getCsv();
+      const data = response.data;
+      
+      // Create a combined CSV content
+      const combinedCsv = `=== ERNÄHRUNG (${data.counts.nutrition} Einträge) ===\n${data.nutrition_csv}\n\n=== VITALDATEN (${data.counts.vitals} Einträge) ===\n${data.vitals_csv}\n\n=== SPORT (${data.counts.sport} Einträge) ===\n${data.sport_csv}\n\n=== FINANZEN (${data.counts.finance} Einträge) ===\n${data.finance_csv}`;
+      
+      // Use Share API to let user save/share the data
+      await Share.share({
+        message: combinedCsv,
+        title: `HealthMate Export ${data.start_date} bis ${data.end_date}`,
+      });
+      
+    } catch (error) {
+      Alert.alert('Fehler', 'Daten konnten nicht exportiert werden');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const renderGenderSelector = () => (
     <View style={styles.genderSelector}>
       {['male', 'female', 'diverse'].map((gender) => (
