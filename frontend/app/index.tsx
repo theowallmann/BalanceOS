@@ -183,11 +183,18 @@ export default function DashboardScreen() {
                 </Text>
                 <Text style={styles.calorieBalanceLabel}>{t('kcal')}</Text>
               </View>
-              <View style={styles.calorieItem}>
+              <TouchableOpacity 
+                style={styles.calorieItem}
+                onPress={() => trackingSettings.show_calorie_breakdown !== false && setCalorieModalVisible(true)}
+                activeOpacity={trackingSettings.show_calorie_breakdown !== false ? 0.7 : 1}
+              >
                 <Ionicons name="flame" size={24} color={COLORS.accent} />
                 <Text style={styles.calorieValue}>{summary.calories_burned || 0}</Text>
                 <Text style={styles.calorieLabel}>{t('burned')}</Text>
-              </View>
+                {trackingSettings.show_calorie_breakdown !== false && (
+                  <Ionicons name="information-circle-outline" size={14} color={COLORS.textSecondary} style={{ marginTop: 4 }} />
+                )}
+              </TouchableOpacity>
             </View>
             <View style={styles.progressBarBg}>
               <View style={[styles.progressBarFill, { 
