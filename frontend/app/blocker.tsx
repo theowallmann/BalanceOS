@@ -485,15 +485,21 @@ export default function BlockerScreen() {
             </Text>
             <View style={styles.permissionBannerSteps}>
               <Text style={styles.permissionStepText}>1. Einstellungen → Bedienungshilfen</Text>
-              <Text style={styles.permissionStepText}>2. Installierte Dienste</Text>
+              <Text style={styles.permissionStepText}>2. Heruntergeladene Apps</Text>
               <Text style={styles.permissionStepText}>3. Diese App aktivieren</Text>
+            </View>
+            <View style={styles.permissionBannerNote}>
+              <Ionicons name="information-circle" size={16} color={COLORS.info} />
+              <Text style={styles.permissionBannerNoteText}>
+                Hinweis: Die App erscheint dort erst nach Installation als APK (nicht in Expo Go).
+              </Text>
             </View>
             <TouchableOpacity 
               style={styles.permissionBannerButton}
               onPress={openAccessibilitySettings}
             >
               <Ionicons name="settings-outline" size={18} color={COLORS.text} />
-              <Text style={styles.permissionBannerButtonText}>Einstellungen öffnen</Text>
+              <Text style={styles.permissionBannerButtonText}>Bedienungshilfen öffnen</Text>
             </TouchableOpacity>
           </View>
         )}
