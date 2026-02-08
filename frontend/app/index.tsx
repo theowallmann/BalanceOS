@@ -33,6 +33,7 @@ export default function DashboardScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const [calorieModalVisible, setCalorieModalVisible] = useState(false);
 
   const dateString = getDateString(selectedDate);
 
