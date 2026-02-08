@@ -56,6 +56,37 @@ export default function DashboardScreen() {
     queryFn: () => profileApi.get().then(res => res.data),
   });
 
+  // Get vitals for BMR/NEAT calculation
+  const { data: vitalsData } = useQuery({
+    queryKey: ['vitals', dateString],
+    queryFn: () => vitalsApi.getByDate(dateString).then(res => res.data),
+    enabled: selectedPeriod === 'today',
+  });
+
+  // Calculate BMR (Mifflin-St Jeor)
+  const calculateBMR = (): number | null => {
+    const weight = vitalsData?.weight;
+    const height = profile?.height;
+    const birthDate = profile?.birth_date;
+    const gender = profile?.gender;
+    
+    if (!weight || !height || !birthDate || !gender) return null;
+    
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    const genderOffset = gender === 'female' ? -161 : 5;
+    return Math.round(10 * weight + 6.25 * height - 5 * age + genderOffset);
+  };
+
+  const bmr = calculateBMR();
+  const neat = bmr ? Math.round(bmr * 0.375) : null; // NEAT = BMR * 0.375 (activity factor 1.375 - 1)
+
   useFocusEffect(
     useCallback(() => {
       if (selectedPeriod === 'today') {
