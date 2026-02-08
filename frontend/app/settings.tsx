@@ -280,9 +280,9 @@ export default function SettingsScreen() {
       >
         {/* Quick Presets - NOW AT THE TOP */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚡ Schnellauswahl</Text>
+          <Text style={styles.sectionTitle}>⚡ {t('quickSelect')}</Text>
           <Text style={styles.sectionHint}>
-            Wähle ein Preset, das zu deinem Ziel passt
+            {t('selectPreset')}
           </Text>
           <ScrollView 
             horizontal 
