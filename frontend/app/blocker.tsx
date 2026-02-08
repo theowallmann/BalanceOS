@@ -488,12 +488,6 @@ export default function BlockerScreen() {
               <Text style={styles.permissionStepText}>2. Heruntergeladene Apps</Text>
               <Text style={styles.permissionStepText}>3. Diese App aktivieren</Text>
             </View>
-            <View style={styles.permissionBannerNote}>
-              <Ionicons name="information-circle" size={16} color={COLORS.info} />
-              <Text style={styles.permissionBannerNoteText}>
-                Hinweis: Die App erscheint dort erst nach Installation als APK (nicht in Expo Go).
-              </Text>
-            </View>
             <TouchableOpacity 
               style={styles.permissionBannerButton}
               onPress={openAccessibilitySettings}
