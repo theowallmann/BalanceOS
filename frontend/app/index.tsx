@@ -502,6 +502,122 @@ export default function DashboardScreen() {
           selectedPeriod === 'today' ? renderTodayView() : renderPeriodView()
         )}
       </ScrollView>
+
+      {/* Calorie Breakdown Modal */}
+      <Modal
+        visible={calorieModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCalorieModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Kalorienverbrauch Aufschlüsselung</Text>
+              <TouchableOpacity onPress={() => setCalorieModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              {/* Total Burned */}
+              <View style={styles.totalBurnedCard}>
+                <Ionicons name="flame" size={32} color={COLORS.accent} />
+                <Text style={styles.totalBurnedValue}>
+                  {(neat || 0) + (analytics?.sport?.data?.calories_burned || 0)} kcal
+                </Text>
+                <Text style={styles.totalBurnedLabel}>Verbrannte Kalorien heute</Text>
+              </View>
+
+              {/* Breakdown Items */}
+              <View style={styles.breakdownSection}>
+                {/* NEAT */}
+                <View style={styles.breakdownItem}>
+                  <View style={styles.breakdownLeft}>
+                    <View style={[styles.breakdownIcon, { backgroundColor: COLORS.primary + '20' }]}>
+                      <Ionicons name="body" size={20} color={COLORS.primary} />
+                    </View>
+                    <View>
+                      <Text style={styles.breakdownTitle}>NEAT</Text>
+                      <Text style={styles.breakdownSubtitle}>Alltagsaktivität (ohne Sport)</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.breakdownValue}>
+                    {neat !== null ? `${neat} kcal` : '—'}
+                  </Text>
+                </View>
+
+                {/* Sport/Workouts */}
+                <View style={styles.breakdownItem}>
+                  <View style={styles.breakdownLeft}>
+                    <View style={[styles.breakdownIcon, { backgroundColor: COLORS.calories + '20' }]}>
+                      <Ionicons name="fitness" size={20} color={COLORS.calories} />
+                    </View>
+                    <View>
+                      <Text style={styles.breakdownTitle}>Sport & Training</Text>
+                      <Text style={styles.breakdownSubtitle}>Aufgezeichnete Workouts</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.breakdownValue}>
+                    {analytics?.sport?.data?.calories_burned || 0} kcal
+                  </Text>
+                </View>
+
+                {/* Steps Bonus/Malus */}
+                <View style={styles.breakdownItem}>
+                  <View style={styles.breakdownLeft}>
+                    <View style={[styles.breakdownIcon, { backgroundColor: COLORS.secondary + '20' }]}>
+                      <Ionicons name="footsteps" size={20} color={COLORS.secondary} />
+                    </View>
+                    <View>
+                      <Text style={styles.breakdownTitle}>Schritte</Text>
+                      <Text style={styles.breakdownSubtitle}>
+                        {analytics?.sport?.data?.steps || 0} / {sportGoals.daily_steps || '10000'} Ziel
+                      </Text>
+                    </View>
+                  </View>
+                  {(() => {
+                    const steps = analytics?.sport?.data?.steps || 0;
+                    const goalSteps = sportGoals.daily_steps || 10000;
+                    const diff = steps - goalSteps;
+                    const caloriesDiff = Math.round((diff / 1000) * 40); // ~40 kcal per 1000 steps
+                    return (
+                      <Text style={[styles.breakdownValue, { color: diff >= 0 ? COLORS.success : COLORS.error }]}>
+                        {diff >= 0 ? '+' : ''}{caloriesDiff} kcal
+                      </Text>
+                    );
+                  })()}
+                </View>
+              </View>
+
+              {/* Missing Data Warning */}
+              {!bmr && (
+                <View style={styles.missingDataWarning}>
+                  <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.missingDataTitle}>Fehlende Daten für BMR-Berechnung:</Text>
+                    <Text style={styles.missingDataList}>
+                      {!vitalsData?.weight && '• Gewicht (heute in Vitaldaten)\n'}
+                      {!profile?.height && '• Größe (im Profil)\n'}
+                      {!profile?.birth_date && '• Geburtsdatum (im Profil)\n'}
+                      {!profile?.gender && '• Geschlecht (im Profil)'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Calculation Info */}
+              <View style={styles.calcInfoBox}>
+                <Ionicons name="calculator-outline" size={18} color={COLORS.info} />
+                <Text style={styles.calcInfoText}>
+                  Berechnung: NEAT + Sport{'\n'}
+                  Schritte: ±40 kcal pro 1000 Schritte über/unter Ziel
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
