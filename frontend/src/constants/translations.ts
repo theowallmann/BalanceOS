@@ -6,6 +6,9 @@ export const translations = {
     sport: 'Sport',
     vitals: 'Vitaldaten',
     profile: 'Profil',
+    finance: 'Finanzen',
+    blocker: 'Sperre',
+    settings: 'Einstellungen',
     
     // Common
     save: 'Speichern',
@@ -18,6 +21,9 @@ export const translations = {
     loading: 'Laden...',
     error: 'Fehler',
     success: 'Erfolgreich',
+    noData: 'Keine Daten',
+    optional: 'Optional',
+    close: 'Schließen',
     
     // Nutrition
     calories: 'Kalorien',
@@ -36,6 +42,8 @@ export const translations = {
     remaining: 'Verbleibend',
     consumed: 'Aufgenommen',
     goal: 'Ziel',
+    noNutritionEntries: 'Keine Einträge für heute',
+    addFirstEntry: 'Füge deinen ersten Eintrag hinzu',
     
     // Vitals
     weight: 'Gewicht',
@@ -48,6 +56,11 @@ export const translations = {
     restingHeartRate: 'Ruhepuls',
     bmr: 'Grundumsatz',
     neat: 'NEAT',
+    bodyData: 'Körperdaten',
+    metabolism: 'Stoffwechsel',
+    sleep: 'Schlaf',
+    heart: 'Herz',
+    noVitalsData: 'Keine Vitaldaten für diesen Tag',
     
     // Sport
     steps: 'Schritte',
@@ -57,6 +70,7 @@ export const translations = {
     caloriesBurned: 'Verbrannte Kalorien',
     distance: 'Distanz',
     customGoals: 'Eigene Ziele',
+    noSportData: 'Keine Sportdaten für diesen Tag',
     
     // Profile
     birthDate: 'Geburtsdatum',
@@ -70,6 +84,16 @@ export const translations = {
     sportGoals: 'Sportziele',
     overallGoal: 'Gesamtziel',
     getAiSuggestions: 'KI-Vorschläge erhalten',
+    personalData: 'Persönliche Daten',
+    targetWeight: 'Zielgewicht',
+    targetBodyFat: 'Ziel Körperfett',
+    dailySteps: 'Tägliche Schritte',
+    weeklyWorkouts: 'Wöchentliche Trainings',
+    trackingSettings: 'Tracking-Einstellungen',
+    whatToTrack: 'Was möchtest du tracken?',
+    dataExport: 'Daten',
+    exportData: 'Daten exportieren',
+    exportDescription: 'Alle Daten als CSV (letzte 30 Tage)',
     
     // Fitbit
     connectFitbit: 'Fitbit verbinden',
@@ -81,6 +105,34 @@ export const translations = {
     dailySummary: 'Tagesübersicht',
     calorieBalance: 'Kalorienbilanz',
     burned: 'Verbrannt',
+    thirtyDays: '30 Tage',
+    allTime: 'Gesamt',
+    
+    // Calorie Breakdown
+    calorieBreakdown: 'Kalorienverbrauch Aufschlüsselung',
+    burnedCaloriesToday: 'Verbrannte Kalorien heute',
+    dailyActivity: 'Alltagsaktivität (ohne Sport)',
+    sportAndTraining: 'Sport & Training',
+    recordedWorkouts: 'Aufgezeichnete Workouts',
+    stepsGoal: 'Ziel',
+    missingDataForBMR: 'Fehlende Daten für BMR-Berechnung:',
+    weightInVitals: 'Gewicht (heute in Vitaldaten)',
+    heightInProfile: 'Größe (im Profil)',
+    birthDateInProfile: 'Geburtsdatum (im Profil)',
+    genderInProfile: 'Geschlecht (im Profil)',
+    calculationInfo: 'Berechnung: NEAT + Sport\nSchritte: ±40 kcal pro 1000 Schritte über/unter Ziel',
+    
+    // BMR/NEAT Calculation
+    bmrNeatCalculation: 'BMR & NEAT Berechnung',
+    mifflinStJeorFormula: 'Mifflin-St Jeor Formel',
+    withoutBodyFat: '(ohne Körperfett)',
+    katchMcArdleFormula: 'Katch-McArdle Formel',
+    withBodyFatMoreAccurate: '(mit Körperfett - genauer)',
+    missingData: 'Fehlende Daten',
+    bmrNeededForNeat: 'BMR wird benötigt um NEAT zu berechnen',
+    bmrExplanation: 'BMR (Basal Metabolic Rate) ist dein Grundumsatz - die Energie die dein Körper in Ruhe verbraucht. NEAT sind die Kalorien die du durch Alltagsaktivitäten (nicht Sport) verbrauchst.',
+    perDay: 'pro Tag',
+    activityFactor: 'Aktivitätsfaktor: 1,375 für moderate Aktivität',
     
     // Workout types
     running: 'Laufen',
@@ -90,6 +142,45 @@ export const translations = {
     yoga: 'Yoga',
     hiking: 'Wandern',
     other: 'Sonstiges',
+    
+    // Finance
+    noCategories: 'Keine Kategorien',
+    createCategoryHint: 'Erstelle eine Kategorie, um deine Ausgaben zu tracken',
+    
+    // App Blocker
+    appBlocker: 'App-Sperre',
+    notifications: 'Benachrichtigungen',
+    permissionRequired: 'Berechtigung erforderlich',
+    blockerPermissionText: 'Damit die App-Sperre funktioniert, muss die App auf andere Apps zugreifen dürfen. Aktiviere den Bedienungshilfen-Dienst in den Android-Einstellungen.',
+    step1Accessibility: '1. Einstellungen → Bedienungshilfen',
+    step2DownloadedApps: '2. Heruntergeladene Apps',
+    step3EnableApp: '3. Diese App aktivieren',
+    openAccessibility: 'Bedienungshilfen öffnen',
+    accessibilityEnabled: 'Bedienungshilfen aktiviert - App-Sperre ist einsatzbereit',
+    noBlockRules: 'Keine App-Sperren eingerichtet',
+    createBlockRule: 'Erstelle eine Sperre, um Apps zu bestimmten Zeiten zu blockieren',
+    blockRulesActive: 'Sperre(n) aktiv',
+    
+    // Settings
+    quickSelect: 'Schnellauswahl',
+    selectPreset: 'Wähle ein Preset, das zu deinem Ziel passt',
+    weightLoss: 'Abnehmen',
+    caloriesWeightFocus: 'Kalorien & Gewicht im Fokus',
+    muscleBuilding: 'Muskelaufbau',
+    proteinTrainingFocus: 'Protein & Training tracken',
+    healthyLifestyle: 'Gesünder leben',
+    sleepWaterMovement: 'Schlaf, Wasser & Bewegung',
+    trackEverything: 'Alles tracken',
+    forDetailLovers: 'Für Detailverliebte',
+    trackingDescription: 'Passe die einzelnen Tracking-Optionen an. Deaktivierte Metriken werden in der App nicht angezeigt.',
+    calculations: 'Berechnungen',
+    calculationsDescription: 'Zeige detaillierte Aufschlüsselungen der Kalorienberechnung',
+    calorieBreakdownSetting: 'Kalorienaufschlüsselung',
+    categoriesShowHide: 'Kategorien ein-/ausblenden',
+    categoriesDescription: 'Blende ganze Bereiche aus, die du nicht brauchst. Du kannst sie jederzeit wieder aktivieren.',
+    visibleInNavigation: 'Sichtbar in der Navigation',
+    hidden: 'Ausgeblendet',
+    analytics: 'Auswertung',
     
     // Units
     kcal: 'kcal',
@@ -101,6 +192,7 @@ export const translations = {
     km: 'km',
     hours: 'Stunden',
     bpm: 'BPM',
+    percent: '%',
   },
   en: {
     // Navigation
@@ -109,6 +201,9 @@ export const translations = {
     sport: 'Sport',
     vitals: 'Vitals',
     profile: 'Profile',
+    finance: 'Finance',
+    blocker: 'Blocker',
+    settings: 'Settings',
     
     // Common
     save: 'Save',
@@ -121,6 +216,9 @@ export const translations = {
     loading: 'Loading...',
     error: 'Error',
     success: 'Success',
+    noData: 'No data',
+    optional: 'Optional',
+    close: 'Close',
     
     // Nutrition
     calories: 'Calories',
@@ -139,6 +237,8 @@ export const translations = {
     remaining: 'Remaining',
     consumed: 'Consumed',
     goal: 'Goal',
+    noNutritionEntries: 'No entries for today',
+    addFirstEntry: 'Add your first entry',
     
     // Vitals
     weight: 'Weight',
@@ -151,6 +251,11 @@ export const translations = {
     restingHeartRate: 'Resting Heart Rate',
     bmr: 'BMR',
     neat: 'NEAT',
+    bodyData: 'Body Data',
+    metabolism: 'Metabolism',
+    sleep: 'Sleep',
+    heart: 'Heart',
+    noVitalsData: 'No vitals data for this day',
     
     // Sport
     steps: 'Steps',
@@ -160,6 +265,7 @@ export const translations = {
     caloriesBurned: 'Calories Burned',
     distance: 'Distance',
     customGoals: 'Custom Goals',
+    noSportData: 'No sport data for this day',
     
     // Profile
     birthDate: 'Birth Date',
@@ -173,6 +279,16 @@ export const translations = {
     sportGoals: 'Sport Goals',
     overallGoal: 'Overall Goal',
     getAiSuggestions: 'Get AI Suggestions',
+    personalData: 'Personal Data',
+    targetWeight: 'Target Weight',
+    targetBodyFat: 'Target Body Fat',
+    dailySteps: 'Daily Steps',
+    weeklyWorkouts: 'Weekly Workouts',
+    trackingSettings: 'Tracking Settings',
+    whatToTrack: 'What do you want to track?',
+    dataExport: 'Data',
+    exportData: 'Export Data',
+    exportDescription: 'All data as CSV (last 30 days)',
     
     // Fitbit
     connectFitbit: 'Connect Fitbit',
@@ -184,6 +300,34 @@ export const translations = {
     dailySummary: 'Daily Summary',
     calorieBalance: 'Calorie Balance',
     burned: 'Burned',
+    thirtyDays: '30 Days',
+    allTime: 'All Time',
+    
+    // Calorie Breakdown
+    calorieBreakdown: 'Calorie Burn Breakdown',
+    burnedCaloriesToday: 'Calories burned today',
+    dailyActivity: 'Daily activity (without exercise)',
+    sportAndTraining: 'Sport & Training',
+    recordedWorkouts: 'Recorded workouts',
+    stepsGoal: 'Goal',
+    missingDataForBMR: 'Missing data for BMR calculation:',
+    weightInVitals: 'Weight (today in Vitals)',
+    heightInProfile: 'Height (in Profile)',
+    birthDateInProfile: 'Birth date (in Profile)',
+    genderInProfile: 'Gender (in Profile)',
+    calculationInfo: 'Calculation: NEAT + Sport\nSteps: ±40 kcal per 1000 steps above/below goal',
+    
+    // BMR/NEAT Calculation
+    bmrNeatCalculation: 'BMR & NEAT Calculation',
+    mifflinStJeorFormula: 'Mifflin-St Jeor Formula',
+    withoutBodyFat: '(without body fat)',
+    katchMcArdleFormula: 'Katch-McArdle Formula',
+    withBodyFatMoreAccurate: '(with body fat - more accurate)',
+    missingData: 'Missing data',
+    bmrNeededForNeat: 'BMR is needed to calculate NEAT',
+    bmrExplanation: 'BMR (Basal Metabolic Rate) is your base metabolic rate - the energy your body burns at rest. NEAT is the calories you burn through daily activities (not exercise).',
+    perDay: 'per day',
+    activityFactor: 'Activity factor: 1.375 for moderate activity',
     
     // Workout types
     running: 'Running',
@@ -193,6 +337,45 @@ export const translations = {
     yoga: 'Yoga',
     hiking: 'Hiking',
     other: 'Other',
+    
+    // Finance
+    noCategories: 'No Categories',
+    createCategoryHint: 'Create a category to track your expenses',
+    
+    // App Blocker
+    appBlocker: 'App Blocker',
+    notifications: 'Notifications',
+    permissionRequired: 'Permission Required',
+    blockerPermissionText: 'For the app blocker to work, the app needs access to other apps. Enable the Accessibility Service in Android settings.',
+    step1Accessibility: '1. Settings → Accessibility',
+    step2DownloadedApps: '2. Downloaded Apps',
+    step3EnableApp: '3. Enable this app',
+    openAccessibility: 'Open Accessibility',
+    accessibilityEnabled: 'Accessibility enabled - App blocker is ready',
+    noBlockRules: 'No block rules set up',
+    createBlockRule: 'Create a rule to block apps at specific times',
+    blockRulesActive: 'Block rule(s) active',
+    
+    // Settings
+    quickSelect: 'Quick Select',
+    selectPreset: 'Choose a preset that fits your goal',
+    weightLoss: 'Weight Loss',
+    caloriesWeightFocus: 'Focus on calories & weight',
+    muscleBuilding: 'Muscle Building',
+    proteinTrainingFocus: 'Track protein & training',
+    healthyLifestyle: 'Healthy Lifestyle',
+    sleepWaterMovement: 'Sleep, water & movement',
+    trackEverything: 'Track Everything',
+    forDetailLovers: 'For detail lovers',
+    trackingDescription: 'Customize individual tracking options. Disabled metrics will not be shown in the app.',
+    calculations: 'Calculations',
+    calculationsDescription: 'Show detailed calorie calculation breakdowns',
+    calorieBreakdownSetting: 'Calorie Breakdown',
+    categoriesShowHide: 'Show/Hide Categories',
+    categoriesDescription: 'Hide entire sections you don\'t need. You can enable them again anytime.',
+    visibleInNavigation: 'Visible in navigation',
+    hidden: 'Hidden',
+    analytics: 'Analytics',
     
     // Units
     kcal: 'kcal',
@@ -204,6 +387,7 @@ export const translations = {
     km: 'km',
     hours: 'hours',
     bpm: 'BPM',
+    percent: '%',
   }
 };
 
