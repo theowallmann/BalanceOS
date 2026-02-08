@@ -362,29 +362,28 @@ export default function SettingsScreen() {
 
         {/* Calculations Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🧮 Berechnungen</Text>
+          <Text style={styles.sectionTitle}>🧮 {t('calculations')}</Text>
           <Text style={styles.sectionHint}>
-            Zeige detaillierte Aufschlüsselungen der Kalorienberechnung
+            {t('calculationsDescription')}
           </Text>
           <View style={styles.sectionCard}>
-            {renderToggle('show_calorie_breakdown', 'Kalorienaufschlüsselung', 'calculator', COLORS.calories)}
+            {renderToggle('show_calorie_breakdown', t('calorieBreakdownSetting'), 'calculator', COLORS.calories)}
           </View>
         </View>
 
         {/* Tab Visibility Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📱 Kategorien ein-/ausblenden</Text>
+          <Text style={styles.sectionTitle}>📱 {t('categoriesShowHide')}</Text>
           <Text style={styles.sectionHint}>
-            Blende ganze Bereiche aus, die du nicht brauchst. 
-            Du kannst sie jederzeit wieder aktivieren.
+            {t('categoriesDescription')}
           </Text>
           <View style={styles.sectionCard}>
-            {renderTabToggle('show_dashboard_tab', 'Auswertung', 'analytics', COLORS.info)}
-            {renderTabToggle('show_nutrition_tab', 'Ernährung', 'restaurant', COLORS.calories)}
-            {renderTabToggle('show_sport_tab', 'Sport', 'fitness', COLORS.primary)}
-            {renderTabToggle('show_vitals_tab', 'Vitaldaten', 'heart', COLORS.error)}
-            {renderTabToggle('show_finance_tab', 'Finanzen', 'wallet', COLORS.accent)}
-            {renderTabToggle('show_blocker_tab', 'App-Sperre', 'lock-closed', COLORS.secondary)}
+            {renderTabToggle('show_dashboard_tab', t('analytics'), 'analytics', COLORS.info)}
+            {renderTabToggle('show_nutrition_tab', t('nutrition'), 'restaurant', COLORS.calories)}
+            {renderTabToggle('show_sport_tab', t('sport'), 'fitness', COLORS.primary)}
+            {renderTabToggle('show_vitals_tab', t('vitals'), 'heart', COLORS.error)}
+            {renderTabToggle('show_finance_tab', t('finance'), 'wallet', COLORS.accent)}
+            {renderTabToggle('show_blocker_tab', t('blocker'), 'lock-closed', COLORS.secondary)}
           </View>
         </View>
       </ScrollView>
