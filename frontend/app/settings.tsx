@@ -201,6 +201,66 @@ export default function SettingsScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
+  // Presets defined inside component to use translations
+  const PRESETS = [
+    {
+      key: 'weight_loss',
+      label: t('weightLoss'),
+      description: t('caloriesWeightFocus'),
+      icon: 'trending-down',
+      color: '#FF6B6B',
+      settings: {
+        track_calories: true, track_protein: false, track_carbs: false, track_fat: false,
+        track_fiber: false, track_sugar: false, track_salt: false, track_water: true,
+        track_weight: true, track_body_fat: false, track_sleep: false, track_sleep_quality: false,
+        track_morning_energy: false, track_resting_heart_rate: false, track_steps: true,
+        track_workouts: false, track_calories_burned: true,
+      },
+    },
+    {
+      key: 'muscle_building',
+      label: t('muscleBuilding'),
+      description: t('proteinTrainingFocus'),
+      icon: 'barbell',
+      color: COLORS.primary,
+      settings: {
+        track_calories: true, track_protein: true, track_carbs: true, track_fat: false,
+        track_fiber: false, track_sugar: false, track_salt: false, track_water: true,
+        track_weight: true, track_body_fat: true, track_sleep: true, track_sleep_quality: false,
+        track_morning_energy: false, track_resting_heart_rate: false, track_steps: false,
+        track_workouts: true, track_calories_burned: true,
+      },
+    },
+    {
+      key: 'healthy_lifestyle',
+      label: t('healthyLifestyle'),
+      description: t('sleepWaterMovement'),
+      icon: 'leaf',
+      color: '#2ECC71',
+      settings: {
+        track_calories: false, track_protein: false, track_carbs: false, track_fat: false,
+        track_fiber: false, track_sugar: false, track_salt: false, track_water: true,
+        track_weight: false, track_body_fat: false, track_sleep: true, track_sleep_quality: true,
+        track_morning_energy: true, track_resting_heart_rate: false, track_steps: true,
+        track_workouts: false, track_calories_burned: false,
+      },
+    },
+    {
+      key: 'all',
+      label: t('trackEverything'),
+      description: t('forDetailLovers'),
+      icon: 'checkmark-done',
+      color: COLORS.accent,
+      settings: {
+        track_calories: true, track_protein: true, track_carbs: true, track_fat: true,
+        track_fiber: true, track_sugar: true, track_salt: true, track_water: true,
+        track_weight: true, track_body_fat: true, track_sleep: true, track_sleep_quality: true,
+        track_morning_energy: true, track_resting_heart_rate: true, track_steps: true,
+        track_workouts: true, track_calories_burned: true,
+      },
+    },
+  ];
+
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: () => profileApi.get().then(res => res.data),
