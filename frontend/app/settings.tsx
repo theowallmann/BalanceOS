@@ -318,8 +318,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={styles.description}>
-          Passe die einzelnen Tracking-Optionen an. Deaktivierte Metriken werden 
-          in der App nicht angezeigt.
+          {t('trackingDescription')}
         </Text>
 
         {/* Nutrition Section */}
