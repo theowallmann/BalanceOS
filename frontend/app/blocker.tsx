@@ -1128,6 +1128,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  permissionBannerNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.info + '15',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 12,
+    gap: 8,
+  },
+  permissionBannerNoteText: {
+    fontSize: 12,
+    color: COLORS.info,
+    flex: 1,
+    lineHeight: 16,
+  },
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
