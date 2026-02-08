@@ -241,7 +241,7 @@ export default function SettingsScreen() {
         <View>
           <Text style={styles.toggleLabel}>{label}</Text>
           <Text style={styles.tabToggleHint}>
-            {settings[key] ? 'Sichtbar in der Navigation' : 'Ausgeblendet'}
+            {settings[key] ? t('visibleInNavigation') : t('hidden')}
           </Text>
         </View>
       </View>
