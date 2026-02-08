@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
-import { analyticsApi, profileApi } from '../src/services/api';
+import { analyticsApi, profileApi, vitalsApi } from '../src/services/api';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday } from '../src/utils/date';
 
 type Period = 'today' | 'month' | 'all';
