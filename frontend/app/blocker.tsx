@@ -51,16 +51,17 @@ const checkAccessibilityPermission = async (): Promise<boolean> => {
   }
 };
 
-// Open Android Accessibility Settings
+// Open Android Accessibility Settings directly
 const openAccessibilitySettings = () => {
   if (Platform.OS === 'android') {
     // Direct link to Accessibility Settings
-    Linking.openSettings().catch(() => {
-      // Fallback: try specific accessibility settings intent
-      Linking.openURL('android-settings://accessibility').catch(() => {
+    Linking.sendIntent('android.settings.ACCESSIBILITY_SETTINGS').catch(() => {
+      // Fallback: try openURL with the settings URI
+      Linking.openURL('content://settings/accessibility').catch(() => {
         Alert.alert(
           'Einstellungen öffnen',
-          'Bitte öffne manuell: Einstellungen → Bedienungshilfen → Installierte Dienste → [App Name]'
+          'Bitte öffne manuell: Einstellungen → Bedienungshilfen → Heruntergeladene Apps\n\nHinweis: Die App erscheint dort erst, wenn sie als APK installiert wurde (nicht über Expo Go).',
+          [{ text: 'OK' }]
         );
       });
     });
