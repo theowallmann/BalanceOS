@@ -559,21 +559,54 @@ export default function NutritionScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Description */}
+                {/* Description with Voice Input */}
                 <Text style={styles.inputLabel}>{t('mealDescription')}</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={formData.description}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                  placeholder="z.B. Haferflocken mit Banane"
-                  placeholderTextColor={COLORS.textSecondary}
-                  multiline
-                />
+                <View style={styles.descriptionContainer}>
+                  <TextInput
+                    style={[styles.textInput, styles.descriptionInput]}
+                    value={formData.description}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                    placeholder={language === 'de' ? "z.B. Haferflocken mit Banane" : "e.g. Oatmeal with banana"}
+                    placeholderTextColor={COLORS.textSecondary}
+                    multiline
+                  />
+                  {/* Voice Input Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.voiceButton,
+                      isRecording && styles.voiceButtonRecording,
+                    ]}
+                    onPress={isRecording ? stopRecording : startRecording}
+                    disabled={isTranscribing}
+                  >
+                    {isTranscribing ? (
+                      <ActivityIndicator size="small" color={COLORS.text} />
+                    ) : (
+                      <Animated.View style={{ transform: [{ scale: isRecording ? pulseAnim : 1 }] }}>
+                        <Ionicons 
+                          name={isRecording ? "stop" : "mic"} 
+                          size={24} 
+                          color={isRecording ? COLORS.error : COLORS.text} 
+                        />
+                      </Animated.View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {isRecording && (
+                  <Text style={styles.recordingHint}>
+                    {language === 'de' ? '🎙️ Aufnahme läuft... Tippe zum Stoppen' : '🎙️ Recording... Tap to stop'}
+                  </Text>
+                )}
+                {isTranscribing && (
+                  <Text style={styles.recordingHint}>
+                    {language === 'de' ? '⏳ Wird transkribiert...' : '⏳ Transcribing...'}
+                  </Text>
+                )}
 
                 {/* AI Estimate Button */}
                 <TouchableOpacity 
                   style={styles.aiButton} 
-                  onPress={handleAiEstimate}
+                  onPress={() => handleAiEstimate()}
                   disabled={isAiLoading}
                 >
                   {isAiLoading ? (
