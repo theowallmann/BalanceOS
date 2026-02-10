@@ -490,14 +490,154 @@ async def speech_to_text(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Speech-to-text error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== SPORT AI ENDPOINTS ====================
+
+@api_router.post("/sport/estimate-calories")
+async def estimate_workout_calories(request: Dict):
+    """Estimate calories burned for a workout using AI"""
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenAI API Key nicht konfiguriert")
     
+    workout_type = request.get("type", "")
+    duration = request.get("duration", 0)
+    notes = request.get("notes", "")
+    
+    # Get user profile for better estimation
     profile = await db.profiles.find_one({})
-    if not profile:
-        profile = {}
+    weight = None
+    if profile:
+        latest_vital = await db.vitals.find_one({}, sort=[("date", -1)])
+        if latest_vital:
+            weight = latest_vital.get("weight")
     
-    # Get latest vitals for current weight/body fat
-    latest_vital = await db.vitals.find_one({}, sort=[("date", -1)])
-    if latest_vital:
+    prompt = f"""Schätze die verbrannten Kalorien für folgendes Training:
+- Trainingsart: {workout_type}
+- Dauer: {duration} Minuten
+- Notizen: {notes if notes else 'Keine'}
+- Körpergewicht: {weight if weight else 'unbekannt'} kg
+
+Antworte NUR mit einer Zahl (geschätzte Kalorien). Keine Erklärung."""
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 50,
+                    "temperature": 0.3
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=500, detail="KI-Schätzung fehlgeschlagen")
+            
+            result = response.json()
+            calories_text = result["choices"][0]["message"]["content"].strip()
+            
+            # Extract number from response
+            import re
+            numbers = re.findall(r'\d+', calories_text)
+            calories = int(numbers[0]) if numbers else 0
+            
+            return {"calories": calories}
+            
+    except Exception as e:
+        logger.error(f"Calorie estimation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/sport/ai-training-goals")
+async def generate_training_goals(request: Dict):
+    """Generate personalized training goals based on user's fitness goal"""
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenAI API Key nicht konfiguriert")
+    
+    goal_text = request.get("goal", "")
+    if not goal_text:
+        raise HTTPException(status_code=400, detail="Bitte gib ein Ziel an")
+    
+    # Get user profile
+    profile = await db.profiles.find_one({})
+    profile_info = ""
+    if profile:
+        gender = profile.get("gender", "")
+        height = profile.get("height", "")
+        latest_vital = await db.vitals.find_one({}, sort=[("date", -1)])
+        weight = latest_vital.get("weight") if latest_vital else ""
+        
+        profile_info = f"""
+Nutzerprofil:
+- Geschlecht: {gender if gender else 'unbekannt'}
+- Größe: {height if height else 'unbekannt'} cm
+- Gewicht: {weight if weight else 'unbekannt'} kg
+"""
+
+    prompt = f"""Du bist ein erfahrener Fitness-Coach. Der Nutzer hat folgendes Ziel: "{goal_text}"
+{profile_info}
+
+Erstelle 3-5 konkrete, messbare Trainingsziele, die dem Nutzer helfen, dieses Ziel zu erreichen.
+Für jedes Ziel gib an:
+- name: Kurzer Name des Ziels
+- description: Beschreibung was zu tun ist
+- target_value: Zielwert (z.B. "3x pro Woche", "10 Wiederholungen", "30 Minuten")
+- exercise_type: Art der Übung (running, gym, swimming, cycling, yoga, other)
+- timeframe: Zeitrahmen zum Erreichen (z.B. "4 Wochen", "2 Monate")
+
+Antworte im JSON-Format:
+{{"goals": [
+  {{"name": "...", "description": "...", "target_value": "...", "exercise_type": "...", "timeframe": "..."}},
+  ...
+]}}"""
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1000,
+                    "temperature": 0.7
+                },
+                timeout=60.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=500, detail="KI-Generierung fehlgeschlagen")
+            
+            result = response.json()
+            content = result["choices"][0]["message"]["content"].strip()
+            
+            # Parse JSON response
+            import json
+            import re
+            
+            # Try to extract JSON from response
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                goals_data = json.loads(json_match.group())
+                return goals_data
+            else:
+                return {"goals": []}
+            
+    except json.JSONDecodeError:
+        return {"goals": []}
+    except Exception as e:
+        logger.error(f"Training goals generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== NUTRITION ENDPOINTS ====================
         profile['current_weight'] = latest_vital.get('weight')
         profile['current_body_fat'] = latest_vital.get('body_fat')
     
