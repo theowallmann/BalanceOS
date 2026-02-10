@@ -1275,7 +1275,7 @@ async def get_all_finance_summaries():
 async def get_fitbit_auth_url():
     """Get Fitbit OAuth authorization URL"""
     # For a mobile app, we'd use a redirect URI that the app can handle
-    redirect_uri = "https://healthmate-local.preview.emergentagent.com/api/fitbit/callback"
+    redirect_uri = "https://db-migration-check.preview.emergentagent.com/api/fitbit/callback"
     scope = "activity heartrate sleep weight profile"
     
     auth_url = (
@@ -1292,7 +1292,7 @@ async def get_fitbit_auth_url():
 @api_router.get("/fitbit/callback")
 async def fitbit_callback(code: str):
     """Handle Fitbit OAuth callback"""
-    redirect_uri = "https://healthmate-local.preview.emergentagent.com/api/fitbit/callback"
+    redirect_uri = "https://db-migration-check.preview.emergentagent.com/api/fitbit/callback"
     
     try:
         async with httpx.AsyncClient() as client:
