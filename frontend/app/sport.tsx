@@ -502,16 +502,32 @@ export default function SportScreen() {
                   placeholderTextColor={COLORS.textSecondary}
                 />
 
-                {/* Calories */}
+                {/* Calories with AI Estimate Button */}
                 <Text style={styles.inputLabel}>{t('caloriesBurned')}</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={workoutForm.calories_burned}
-                  onChangeText={(text) => setWorkoutForm(prev => ({ ...prev, calories_burned: text }))}
-                  keyboardType="numeric"
-                  placeholder="z.B. 350"
-                  placeholderTextColor={COLORS.textSecondary}
-                />
+                <View style={styles.calorieInputRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.calorieInput]}
+                    value={workoutForm.calories_burned}
+                    onChangeText={(text) => setWorkoutForm(prev => ({ ...prev, calories_burned: text }))}
+                    keyboardType="numeric"
+                    placeholder="z.B. 350"
+                    placeholderTextColor={COLORS.textSecondary}
+                  />
+                  <TouchableOpacity 
+                    style={styles.aiCalorieButton}
+                    onPress={handleAiCalorieEstimate}
+                    disabled={isAiLoading}
+                  >
+                    {isAiLoading ? (
+                      <ActivityIndicator size="small" color={COLORS.text} />
+                    ) : (
+                      <>
+                        <Ionicons name="sparkles" size={18} color={COLORS.text} />
+                        <Text style={styles.aiCalorieButtonText}>KI</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
 
                 {/* Distance */}
                 <Text style={styles.inputLabel}>{t('distance')} (km)</Text>
