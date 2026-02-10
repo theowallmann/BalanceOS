@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useDataStore } from '../src/store';
 import { profileApi } from '../src/services/api';
+import { useLanguage } from '../src/hooks/useLanguage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
