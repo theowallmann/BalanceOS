@@ -203,6 +203,22 @@ export default function VitalsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* FitBit Sync Button */}
+        {fitbitConnected && isToday(selectedDate) && (
+          <TouchableOpacity 
+            style={[styles.fitbitSyncButton, isSyncing && { opacity: 0.7 }]} 
+            onPress={handleFitbitSync}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={COLORS.text} />
+            ) : (
+              <Ionicons name="sync" size={18} color={COLORS.text} />
+            )}
+            <Text style={styles.fitbitSyncText}>{isSyncing ? 'Synchronisiere...' : 'FitBit Sync'}</Text>
+          </TouchableOpacity>
+        )}
+
         <ScrollView style={styles.scrollView}>
           {isLoading ? <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} /> : (
             <>
