@@ -126,6 +126,80 @@ export default function SportScreen() {
     },
   });
 
+  // AI Calorie Estimation
+  const handleAiCalorieEstimate = async () => {
+    if (!workoutForm.duration) {
+      Alert.alert('Hinweis', 'Bitte gib zuerst die Dauer ein.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      const response = await sportApi.estimateCalories({
+        type: WORKOUT_TYPES.find(w => w.key === workoutForm.type)?.key || workoutForm.type,
+        duration: parseInt(workoutForm.duration),
+        notes: workoutForm.notes,
+      });
+      
+      if (response.data?.calories) {
+        setWorkoutForm(prev => ({
+          ...prev,
+          calories_burned: response.data.calories.toString(),
+        }));
+      }
+    } catch (error) {
+      Alert.alert('Fehler', 'KI-Schätzung fehlgeschlagen');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  // AI Training Goals Generation
+  const handleGenerateGoals = async () => {
+    if (!goalInput.trim()) {
+      Alert.alert('Hinweis', 'Bitte beschreibe dein Ziel.');
+      return;
+    }
+
+    setIsGoalsAiLoading(true);
+    try {
+      const response = await sportApi.generateTrainingGoals(goalInput);
+      
+      if (response.data?.goals && response.data.goals.length > 0) {
+        setAiGeneratedGoals(response.data.goals);
+      } else {
+        Alert.alert('Hinweis', 'Keine Ziele generiert. Versuche eine andere Beschreibung.');
+      }
+    } catch (error) {
+      Alert.alert('Fehler', 'Ziel-Generierung fehlgeschlagen');
+    } finally {
+      setIsGoalsAiLoading(false);
+    }
+  };
+
+  // Save AI generated goal to custom metrics
+  const handleSaveGoal = async (goal: any) => {
+    try {
+      const currentMetrics = sportData?.custom_metrics || [];
+      const newMetric = {
+        id: Date.now().toString(),
+        name: goal.name,
+        value: goal.target_value,
+        unit: goal.timeframe,
+        description: goal.description,
+      };
+      
+      await sportApi.updateCustomMetrics(dateString, {
+        custom_metrics: [...currentMetrics, newMetric],
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['sport', dateString] });
+      Alert.alert('Erfolg', `Ziel "${goal.name}" gespeichert!`);
+    } catch (error) {
+      Alert.alert('Fehler', 'Ziel konnte nicht gespeichert werden');
+    }
+  };
+
   const goToPreviousDay = () => setSelectedDate(getPreviousDay(selectedDate));
   const goToNextDay = () => {
     if (!isToday(selectedDate)) {
