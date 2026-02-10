@@ -273,7 +273,7 @@ export default function DashboardScreen() {
             )}
           </View>
           {Object.keys(vitalsData).length === 0 && (
-            <Text style={styles.emptyText}>Keine Vitaldaten für diesen Tag</Text>
+            <Text style={styles.emptyText}>{t('noVitalsData')}</Text>
           )}
         </View>
       </>
