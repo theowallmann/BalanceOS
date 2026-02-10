@@ -3,7 +3,7 @@ export const OPENAI_API_KEY = 'sk-proj-Yzv-Tn_mbiG68z_ImoKXIob7NkaWWfyYqx4A0jZO4
 
 // FitBit API Configuration
 export const FITBIT_CLIENT_ID = '23TMDZ';
-// Note: Client Secret should be stored securely, not in code for production
+export const FITBIT_CLIENT_SECRET = '7d1bc6b5760e3d045102eebdec5ddec3';
 
 export const AI_CONFIG = {
   model: 'gpt-4o-mini',
