@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { FITBIT_CLIENT_ID} from '../constants/apiKeys';
+import * as Linking from 'expo-linking';
+import { FITBIT_CLIENT_ID } from '../constants/apiKeys';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -9,24 +9,6 @@ const FITBIT_AUTH_URL = 'https://www.fitbit.com/oauth2/authorize';
 const FITBIT_API_BASE = 'https://api.fitbit.com/1';
 const FITBIT_SCOPES = ['heartrate', 'activity', 'profile', 'sleep'];
 const TOKEN_STORAGE_KEY = '@balanceos_fitbit_token';
-
-// Generate redirect URI for Expo
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'balanceos',
-  path: 'fitbit-callback',
-});
-
-// Build authorization URL
-function buildAuthUrl(): string {
-  const params = new URLSearchParams({
-    client_id: FITBIT_CLIENT_ID,
-    response_type: 'token',
-    scope: FITBIT_SCOPES.join(' '),
-    redirect_uri: redirectUri,
-    expires_in: '31536000', // 1 year
-  });
-  return `${FITBIT_AUTH_URL}?${params.toString()}`;
-}
 
 // FitBit Service
 export const fitbitService = {
@@ -52,16 +34,37 @@ export const fitbitService = {
   // Initiate OAuth2 login
   async login(): Promise<{ success: boolean; error?: string }> {
     try {
-      const authUrl = buildAuthUrl();
-      const result = await AuthSession.startAsync({ authUrl });
+      const redirectUri = Linking.createURL('fitbit-callback');
+      
+      const params = new URLSearchParams({
+        client_id: FITBIT_CLIENT_ID,
+        response_type: 'token',
+        scope: FITBIT_SCOPES.join(' '),
+        redirect_uri: redirectUri,
+        expires_in: '31536000', // 1 year
+      });
+      
+      const authUrl = `${FITBIT_AUTH_URL}?${params.toString()}`;
+      
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
-      if (result.type === 'success' && result.params?.access_token) {
-        await AsyncStorage.setItem(TOKEN_STORAGE_KEY, result.params.access_token);
-        return { success: true };
-      } else if (result.type === 'error') {
-        return { success: false, error: result.params?.error_description || 'Authentication failed' };
-      } else {
+      if (result.type === 'success' && result.url) {
+        // Parse token from URL fragment
+        const urlParts = result.url.split('#');
+        if (urlParts.length > 1) {
+          const fragmentParams = new URLSearchParams(urlParts[1]);
+          const accessToken = fragmentParams.get('access_token');
+          
+          if (accessToken) {
+            await AsyncStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+            return { success: true };
+          }
+        }
+        return { success: false, error: 'No access token in response' };
+      } else if (result.type === 'cancel') {
         return { success: false, error: 'Authentication cancelled' };
+      } else {
+        return { success: false, error: 'Authentication failed' };
       }
     } catch (error: any) {
       return { success: false, error: error.message || 'Unknown error' };
