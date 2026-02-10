@@ -85,6 +85,141 @@ export default function NutritionScreen() {
     queryFn: () => profileApi.get().then(res => res.data),
   });
 
+  // Pulse animation for recording indicator
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  const stopPulseAnimation = () => {
+    pulseAnim.stopAnimation();
+    pulseAnim.setValue(1);
+  };
+
+  // Start recording
+  const startRecording = async () => {
+    try {
+      // Request permissions
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf das Mikrofon.');
+        return;
+      }
+
+      // Set audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      // Start recording
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setRecording(newRecording);
+      setIsRecording(true);
+      startPulseAnimation();
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      Alert.alert('Fehler', 'Aufnahme konnte nicht gestartet werden.');
+    }
+  };
+
+  // Stop recording and transcribe
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      setIsRecording(false);
+      stopPulseAnimation();
+      setIsTranscribing(true);
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (!uri) {
+        throw new Error('No recording URI');
+      }
+
+      // Convert to blob and send to API
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Send to speech-to-text API
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        type: 'audio/m4a',
+        name: 'recording.m4a',
+      } as any);
+
+      const apiResponse = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL || ''}/api/speech-to-text`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error('Transcription failed');
+      }
+
+      const result = await apiResponse.json();
+      
+      if (result.text) {
+        // Set the transcribed text as description and trigger AI estimation
+        setFormData(prev => ({ ...prev, description: result.text }));
+        // Auto-trigger AI estimation with the transcribed text
+        handleAiEstimate(result.text);
+      }
+
+    } catch (error) {
+      console.error('Failed to process recording:', error);
+      Alert.alert('Fehler', 'Spracherkennung fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  // AI estimate with optional text parameter
+  const handleAiEstimate = async (textOverride?: string) => {
+    const description = textOverride || formData.description;
+    if (!description.trim()) {
+      Alert.alert('Hinweis', 'Bitte beschreibe zuerst was du gegessen hast.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      const response = await nutritionApi.estimateFromText(description);
+      const estimated = response.data;
+      
+      setFormData(prev => ({
+        ...prev,
+        description: description,
+        calories: estimated.calories?.toString() || '',
+        protein: estimated.protein?.toString() || '',
+        carbs: estimated.carbs?.toString() || '',
+        fat: estimated.fat?.toString() || '',
+        fiber: estimated.fiber?.toString() || '',
+        sugar: estimated.sugar?.toString() || '',
+        salt: estimated.salt?.toString() || '',
+        water: estimated.water?.toString() || '',
+      }));
+    } catch (error) {
+      Alert.alert('Fehler', 'KI-Schätzung fehlgeschlagen');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       refetch();
