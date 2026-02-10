@@ -416,12 +416,21 @@ export default function SportScreen() {
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>{t('customGoals')}</Text>
-                  <TouchableOpacity 
-                    style={styles.addIconButton}
-                    onPress={() => setCustomMetricsModalVisible(true)}
-                  >
-                    <Ionicons name="add" size={24} color={COLORS.primary} />
-                  </TouchableOpacity>
+                  <View style={styles.cardHeaderButtons}>
+                    <TouchableOpacity 
+                      style={styles.aiGoalsButton}
+                      onPress={() => setGoalsModalVisible(true)}
+                    >
+                      <Ionicons name="sparkles" size={18} color={COLORS.accent} />
+                      <Text style={styles.aiGoalsButtonText}>KI</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.addIconButton}
+                      onPress={() => setCustomMetricsModalVisible(true)}
+                    >
+                      <Ionicons name="add" size={24} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {(!sportData?.custom_metrics || Object.keys(sportData.custom_metrics).length === 0) ? (
@@ -429,6 +438,13 @@ export default function SportScreen() {
                     <Ionicons name="trophy-outline" size={48} color={COLORS.textSecondary} />
                     <Text style={styles.emptyText}>Keine eigenen Ziele eingetragen</Text>
                     <Text style={styles.emptySubtext}>z.B. Pace, Gewichte, persönliche Bestzeiten</Text>
+                    <TouchableOpacity 
+                      style={styles.aiSuggestButton}
+                      onPress={() => setGoalsModalVisible(true)}
+                    >
+                      <Ionicons name="sparkles" size={16} color={COLORS.text} />
+                      <Text style={styles.aiSuggestButtonText}>Ziele mit KI generieren</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
                   Object.entries(sportData.custom_metrics).map(([name, data]: [string, any]) => (
