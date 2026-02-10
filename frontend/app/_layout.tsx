@@ -107,7 +107,7 @@ function MainTabs() {
       <Tabs.Screen
         name="nutrition"
         options={{
-          title: 'Ernährung',
+          title: 'Nutrition',
           href: tabSettings.show_nutrition_tab ? '/nutrition' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="restaurant" size={size} color={color} />
@@ -127,7 +127,7 @@ function MainTabs() {
       <Tabs.Screen
         name="vitals"
         options={{
-          title: 'Vitaldaten',
+          title: 'Vitals',
           href: tabSettings.show_vitals_tab ? '/vitals' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="heart" size={size} color={color} />
@@ -137,7 +137,7 @@ function MainTabs() {
       <Tabs.Screen
         name="finance"
         options={{
-          title: 'Finanzen',
+          title: 'Finance',
           href: tabSettings.show_finance_tab ? '/finance' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="wallet" size={size} color={color} />
@@ -147,7 +147,7 @@ function MainTabs() {
       <Tabs.Screen
         name="blocker"
         options={{
-          title: 'Sperre',
+          title: 'Blocker',
           href: tabSettings.show_blocker_tab ? '/blocker' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="lock-closed" size={size} color={color} />
@@ -157,7 +157,7 @@ function MainTabs() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
