@@ -458,14 +458,18 @@ export default function DashboardScreen() {
       >
         {/* Period Selector */}
         <View style={styles.periodSelector}>
-          {PERIODS.map((period) => (
+          {[
+            { key: 'today' as Period, label: t('today') },
+            { key: 'month' as Period, label: t('thirtyDays') },
+            { key: 'all' as Period, label: t('allTime') },
+          ].map((period) => (
             <TouchableOpacity
               key={period.key}
               style={[styles.periodButton, selectedPeriod === period.key && styles.periodButtonActive]}
               onPress={() => setSelectedPeriod(period.key)}
             >
               <Text style={[styles.periodButtonText, selectedPeriod === period.key && styles.periodButtonTextActive]}>
-                {language === 'de' ? period.label : period.labelEn}
+                {period.label}
               </Text>
             </TouchableOpacity>
           ))}
