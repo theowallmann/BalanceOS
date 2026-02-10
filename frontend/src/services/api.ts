@@ -110,4 +110,18 @@ export const exportApi = {
   },
 };
 
+// Speech-to-Text API
+export const speechApi = {
+  transcribe: (audioFile: Blob, filename: string) => {
+    const formData = new FormData();
+    formData.append('file', audioFile, filename);
+    return api.post('/speech-to-text', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000,
+    });
+  },
+};
+
 export default api;
