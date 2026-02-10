@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Fotos von Mahlzeiten für Nährwertanalyse",
-        "NSPhotoLibraryUsageDescription": "Fotos aus Galerie für Nährwertanalyse"
+        "NSPhotoLibraryUsageDescription": "Fotos aus Galerie für Nährwertanalyse",
+        "NSMicrophoneUsageDescription": "Spracheingabe für Mahlzeiten-Beschreibung"
       }
     },
     "android": {
@@ -21,7 +22,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "RECORD_AUDIO"]
     },
     "web": {
       "bundler": "metro",
