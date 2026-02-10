@@ -316,16 +316,35 @@ export default function SportScreen() {
           <View style={styles.modalOverlay}><View style={[styles.modalContent, { maxHeight: '60%' }]}>
             <View style={styles.modalHeader}><Text style={styles.modalTitle}>KI-Trainingsziele</Text><TouchableOpacity onPress={() => setGoalsModalVisible(false)}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity></View>
             <View style={styles.modalScroll}>
-              <Text style={styles.inputLabel}>Was möchtest du erreichen?</Text>
-              <TextInput style={[styles.textInput, { minHeight: 80, textAlignVertical: 'top' }]} placeholder="z.B. Grosse Oberarme bekommen, muskulose Brust aufbauen..." placeholderTextColor={COLORS.textSecondary} multiline />
-              <TouchableOpacity style={styles.aiGenerateButton} onPress={handleGenerateGoals}>
-                <Ionicons name="sparkles" size={20} color={COLORS.text} /><Text style={styles.aiGenerateButtonText}>Ziele generieren</Text>
+              <Text style={styles.inputLabel}>Basierend auf deinen Daten werden passende Workouts vorgeschlagen.</Text>
+              <TouchableOpacity style={[styles.aiGenerateButton, isAiLoading && { opacity: 0.7 }]} onPress={handleGenerateGoals} disabled={isAiLoading}>
+                {isAiLoading ? <ActivityIndicator size="small" color={COLORS.text} /> : <Ionicons name="sparkles" size={20} color={COLORS.text} />}
+                <Text style={styles.aiGenerateButtonText}>{isAiLoading ? 'Generiere...' : 'Workout-Vorschläge generieren'}</Text>
               </TouchableOpacity>
-              <View style={styles.infoBox}>
-                <Ionicons name="information-circle" size={20} color={COLORS.info} />
-                <Text style={styles.infoText}>ChatGPT API Key wird benotigt um KI-Ziele zu generieren.</Text>
-              </View>
             </View>
+          </View></View>
+        </Modal>
+
+        {/* AI Suggestions Modal */}
+        <Modal visible={aiSuggestionsModalVisible} animationType="slide" transparent={true} onRequestClose={() => setAiSuggestionsModalVisible(false)}>
+          <View style={styles.modalOverlay}><View style={[styles.modalContent, { maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}><Text style={styles.modalTitle}>KI-Vorschläge</Text><TouchableOpacity onPress={() => setAiSuggestionsModalVisible(false)}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity></View>
+            <ScrollView style={styles.modalScroll}>
+              {aiSuggestions.map((suggestion, index) => (
+                <TouchableOpacity key={index} style={styles.suggestionCard} onPress={() => applyWorkoutSuggestion(suggestion)}>
+                  <View style={styles.suggestionHeader}>
+                    <Ionicons name={suggestion.type === 'cardio' ? 'heart' : suggestion.type === 'strength' ? 'barbell' : 'body'} size={24} color={COLORS.primary} />
+                    <Text style={styles.suggestionTitle}>{suggestion.name}</Text>
+                  </View>
+                  <Text style={styles.suggestionDesc}>{suggestion.description}</Text>
+                  <View style={styles.suggestionMeta}>
+                    <Text style={styles.suggestionMetaText}>{suggestion.duration} Min</Text>
+                    <Text style={styles.suggestionMetaText}>~{suggestion.calories_burned} kcal</Text>
+                  </View>
+                  <Text style={styles.suggestionHint}>Tippen zum Übernehmen</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View></View>
         </Modal>
       </KeyboardAvoidingView>
