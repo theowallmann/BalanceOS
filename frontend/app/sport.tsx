@@ -39,6 +39,11 @@ export default function SportScreen() {
   const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
   const [stepsModalVisible, setStepsModalVisible] = useState(false);
   const [customMetricsModalVisible, setCustomMetricsModalVisible] = useState(false);
+  const [goalsModalVisible, setGoalsModalVisible] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isGoalsAiLoading, setIsGoalsAiLoading] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [aiGeneratedGoals, setAiGeneratedGoals] = useState<any[]>([]);
   
   const [workoutForm, setWorkoutForm] = useState({
     type: 'running',
