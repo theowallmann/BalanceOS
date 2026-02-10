@@ -33,14 +33,56 @@ export default function VitalsScreen() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [vit, prof] = await Promise.all([vitalsService.getByDate(dateString), profileService.get()]);
+      const [vit, prof, connected] = await Promise.all([
+        vitalsService.getByDate(dateString), 
+        profileService.get(),
+        fitbitService.isConnected()
+      ]);
       setVitals(vit);
       setProfile(prof);
+      setFitbitConnected(connected);
     } catch (error) { console.error('Error loading vitals:', error); }
     finally { setIsLoading(false); }
   }, [dateString]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const handleFitbitSync = async () => {
+    setIsSyncing(true);
+    try {
+      const data = await fitbitService.syncToday();
+      
+      // Update vitals with FitBit data
+      const updates: any = {};
+      
+      if (data.heartRate?.restingHeartRate) {
+        updates.resting_heart_rate = data.heartRate.restingHeartRate;
+      }
+      
+      if (data.sleep) {
+        updates.sleep_duration = data.sleep.duration / 60; // to hours
+        updates.sleep_quality = Math.round(data.sleep.efficiency / 20); // 0-100 to 1-5
+        updates.sleep_start = data.sleep.startTime?.split('T')[1]?.slice(0, 5);
+        updates.sleep_end = data.sleep.endTime?.split('T')[1]?.slice(0, 5);
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await vitalsService.createOrUpdate(dateString, updates);
+      }
+      
+      // Update steps in sport
+      if (data.steps > 0) {
+        await sportService.createOrUpdate(dateString, { steps: data.steps });
+      }
+      
+      await loadData();
+      Alert.alert('Erfolg', `FitBit Daten synchronisiert!\n\nSchritte: ${data.steps}\nRuhepuls: ${data.heartRate?.restingHeartRate || '-'} bpm\nSchlaf: ${data.sleep?.duration ? Math.round(data.sleep.duration / 60) + 'h' : '-'}`);
+    } catch (error: any) {
+      Alert.alert('Fehler', error.message || 'Sync fehlgeschlagen');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const goToPreviousDay = () => setSelectedDate(getPreviousDay(selectedDate));
   const goToNextDay = () => { if (!isToday(selectedDate)) setSelectedDate(getNextDay(selectedDate)); };
