@@ -172,6 +172,9 @@ export default function SettingsScreen() {
           ...prof.tracking_settings,
         });
       }
+      // Check FitBit connection
+      const connected = await fitbitService.isConnected();
+      setFitbitConnected(connected);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
@@ -180,6 +183,42 @@ export default function SettingsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  const handleFitbitConnect = async () => {
+    setFitbitLoading(true);
+    try {
+      const result = await fitbitService.login();
+      if (result.success) {
+        setFitbitConnected(true);
+        Alert.alert('Erfolg', 'FitBit erfolgreich verbunden!');
+      } else {
+        Alert.alert('Fehler', result.error || 'Verbindung fehlgeschlagen');
+      }
+    } catch (error: any) {
+      Alert.alert('Fehler', error.message || 'Verbindung fehlgeschlagen');
+    } finally {
+      setFitbitLoading(false);
+    }
+  };
+
+  const handleFitbitDisconnect = async () => {
+    Alert.alert(
+      'FitBit trennen',
+      'Möchtest du die FitBit-Verbindung wirklich trennen?',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Trennen',
+          style: 'destructive',
+          onPress: async () => {
+            await fitbitService.logout();
+            setFitbitConnected(false);
+            Alert.alert('Erfolg', 'FitBit-Verbindung getrennt');
+          },
+        },
+      ]
+    );
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
