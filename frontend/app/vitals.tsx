@@ -343,6 +343,8 @@ const styles = StyleSheet.create({
   dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   dateNavButton: { padding: 8 }, dateNavButtonDisabled: { opacity: 0.5 },
   dateText: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  fitbitSyncButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, marginHorizontal: 16, marginBottom: 12, paddingVertical: 12, borderRadius: 10, gap: 8 },
+  fitbitSyncText: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
   scrollView: { flex: 1, paddingHorizontal: 16 },
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
