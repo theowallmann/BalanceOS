@@ -369,6 +369,48 @@ export default function SettingsScreen() {
           {t('trackingDescription')}
         </Text>
 
+        {/* FitBit Integration */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⌚ FitBit Integration</Text>
+          <View style={styles.sectionCard}>
+            <View style={styles.fitbitRow}>
+              <View style={styles.fitbitInfo}>
+                <Ionicons name="watch-outline" size={32} color={fitbitConnected ? COLORS.success : COLORS.textSecondary} />
+                <View style={styles.fitbitTextContainer}>
+                  <Text style={styles.fitbitTitle}>
+                    {fitbitConnected ? 'FitBit verbunden' : 'FitBit verbinden'}
+                  </Text>
+                  <Text style={styles.fitbitSubtitle}>
+                    {fitbitConnected 
+                      ? 'Schritte, Schlaf & Herzfrequenz synchronisieren' 
+                      : 'Verbinde dein FitBit für automatisches Tracking'}
+                  </Text>
+                </View>
+              </View>
+              {fitbitConnected ? (
+                <TouchableOpacity style={styles.fitbitDisconnectButton} onPress={handleFitbitDisconnect}>
+                  <Ionicons name="unlink" size={20} color={COLORS.error} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.fitbitConnectButton, fitbitLoading && { opacity: 0.7 }]} 
+                  onPress={handleFitbitConnect}
+                  disabled={fitbitLoading}
+                >
+                  {fitbitLoading ? (
+                    <ActivityIndicator size="small" color={COLORS.text} />
+                  ) : (
+                    <>
+                      <Ionicons name="link" size={18} color={COLORS.text} />
+                      <Text style={styles.fitbitConnectText}>Verbinden</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+
         {/* Nutrition Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🍎 Ernährung</Text>
