@@ -123,8 +123,42 @@ export default function NutritionScreen() {
     if (!result.canceled && result.assets[0].base64) setSelectedImage(result.assets[0].base64);
   };
 
-  const handleAiEstimate = () => {
-    Alert.alert('KI-Feature', 'Bitte konfiguriere deinen ChatGPT API Key in den Einstellungen, um die KI-Schatzung zu nutzen.');
+  const handleAiEstimate = async () => {
+    if (!formData.description.trim()) {
+      Alert.alert('Beschreibung fehlt', 'Bitte gib zuerst eine Beschreibung der Mahlzeit ein.');
+      return;
+    }
+    
+    setIsEstimating(true);
+    try {
+      const estimate = await estimateNutrition(formData.description);
+      setFormData(prev => ({
+        ...prev,
+        calories: estimate.calories.toString(),
+        protein: estimate.protein.toString(),
+        carbs: estimate.carbs.toString(),
+        fat: estimate.fat.toString(),
+        fiber: estimate.fiber.toString(),
+        sugar: estimate.sugar.toString(),
+        salt: estimate.salt.toString(),
+        water: estimate.water.toString(),
+      }));
+      
+      const confidenceText = {
+        high: 'hoch',
+        medium: 'mittel', 
+        low: 'niedrig'
+      }[estimate.confidence];
+      
+      Alert.alert(
+        'Schätzung abgeschlossen', 
+        `Die Nährwerte wurden geschätzt.\nKonfidenz: ${confidenceText}\n\nDu kannst die Werte noch anpassen.`
+      );
+    } catch (error) {
+      Alert.alert('Fehler', 'KI-Schätzung fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setIsEstimating(false);
+    }
   };
 
   const nutrientGoals = profile?.nutrient_goals || {};
