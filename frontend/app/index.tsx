@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
-import { analyticsApi, profileApi, vitalsApi } from '../src/services/api';
+import { analyticsService, profileService, vitalsService } from '../src/database/services';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday } from '../src/utils/date';
 
 type Period = 'today' | 'month' | 'all';
@@ -28,76 +27,46 @@ export default function DashboardScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [calorieModalVisible, setCalorieModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [vitalsData, setVitalsData] = useState<any>(null);
 
   const dateString = getDateString(selectedDate);
 
-  // Daily analytics (for "today" view with date navigation)
-  const { data: dailyAnalytics, isLoading: dailyLoading, refetch: refetchDaily } = useQuery({
-    queryKey: ['analytics', dateString],
-    queryFn: () => analyticsApi.getDaily(dateString).then(res => res.data),
-    enabled: selectedPeriod === 'today',
-  });
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [prof, vit] = await Promise.all([
+        profileService.get(),
+        selectedPeriod === 'today' ? vitalsService.getByDate(dateString) : null,
+      ]);
+      setProfile(prof);
+      setVitalsData(vit);
 
-  // Period analytics (for "month" and "all" views)
-  const { data: periodAnalytics, isLoading: periodLoading, refetch: refetchPeriod } = useQuery({
-    queryKey: ['analyticsPeriod', selectedPeriod],
-    queryFn: () => analyticsApi.getPeriod(selectedPeriod).then(res => res.data),
-    enabled: selectedPeriod !== 'today',
-  });
-
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => profileApi.get().then(res => res.data),
-  });
-
-  // Get vitals for BMR/NEAT calculation
-  const { data: vitalsData } = useQuery({
-    queryKey: ['vitals', dateString],
-    queryFn: () => vitalsApi.getByDate(dateString).then(res => res.data),
-    enabled: selectedPeriod === 'today',
-  });
-
-  // Calculate BMR (Mifflin-St Jeor)
-  const calculateBMR = (): number | null => {
-    const weight = vitalsData?.weight;
-    const height = profile?.height;
-    const birthDate = profile?.birth_date;
-    const gender = profile?.gender;
-    
-    if (!weight || !height || !birthDate || !gender) return null;
-    
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+      if (selectedPeriod === 'today') {
+        const data = await analyticsService.getToday(dateString);
+        setAnalytics(data);
+      } else {
+        const data = await analyticsService.getPeriod(selectedPeriod);
+        setAnalytics(data);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    const genderOffset = gender === 'female' ? -161 : 5;
-    return Math.round(10 * weight + 6.25 * height - 5 * age + genderOffset);
-  };
-
-  const bmr = calculateBMR();
-  const neat = bmr ? Math.round(bmr * 0.375) : null; // NEAT = BMR * 0.375 (activity factor 1.375 - 1)
+  }, [dateString, selectedPeriod]);
 
   useFocusEffect(
     useCallback(() => {
-      if (selectedPeriod === 'today') {
-        refetchDaily();
-      } else {
-        refetchPeriod();
-      }
-    }, [selectedPeriod, dateString])
+      loadData();
+    }, [loadData])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (selectedPeriod === 'today') {
-      await refetchDaily();
-    } else {
-      await refetchPeriod();
-    }
+    await loadData();
     setRefreshing(false);
   };
 
@@ -112,8 +81,24 @@ export default function DashboardScreen() {
   const nutrientGoals = profile?.nutrient_goals || {};
   const sportGoals = profile?.sport_goals || {};
 
-  const isLoading = selectedPeriod === 'today' ? dailyLoading : periodLoading;
-  const analytics = selectedPeriod === 'today' ? dailyAnalytics : periodAnalytics;
+  // Calculate BMR (Mifflin-St Jeor)
+  const calculateBMR = (): number | null => {
+    const weight = vitalsData?.weight;
+    const height = profile?.height;
+    const birthDate = profile?.birth_date;
+    const gender = profile?.gender;
+    if (!weight || !height || !birthDate || !gender) return null;
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+    const genderOffset = gender === 'female' ? -161 : 5;
+    return Math.round(10 * weight + 6.25 * height - 5 * age + genderOffset);
+  };
+
+  const bmr = calculateBMR();
+  const neat = bmr ? Math.round(bmr * 0.375) : null;
 
   const renderProgressBar = (current: number, goal: number, color: string, label: string, unit: string, showIfZeroGoal = false) => {
     if (!goal && !showIfZeroGoal) return null;
@@ -122,9 +107,7 @@ export default function DashboardScreen() {
       <View style={styles.progressItem}>
         <View style={styles.progressHeader}>
           <Text style={styles.progressLabel}>{label}</Text>
-          <Text style={styles.progressValue}>
-            {Math.round(current)} / {goal} {unit}
-          </Text>
+          <Text style={styles.progressValue}>{Math.round(current)} / {goal} {unit}</Text>
         </View>
         <View style={styles.progressBarBg}>
           <View style={[styles.progressBarFill, { width: `${percentage}%`, backgroundColor: color }]} />
@@ -141,23 +124,19 @@ export default function DashboardScreen() {
     return (
       <View style={[styles.changeBadge, { backgroundColor: color + '20' }]}>
         <Ionicons name={icon} size={14} color={color} />
-        <Text style={[styles.changeText, { color }]}>
-          {change > 0 ? '+' : ''}{change} {unit}
-        </Text>
+        <Text style={[styles.changeText, { color }]}>{change > 0 ? '+' : ''}{change} {unit}</Text>
       </View>
     );
   };
 
-  // Render Today View
   const renderTodayView = () => {
     const nutritionData = analytics?.nutrition?.consumed || {};
     const sportData = analytics?.sport?.data || {};
-    const vitalsData = analytics?.vitals || {};
+    const vitals = analytics?.vitals || {};
     const summary = analytics?.summary || {};
 
     return (
       <>
-        {/* Calorie Summary Card */}
         {trackingSettings.track_calories !== false && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('calorieBalance')}</Text>
@@ -169,7 +148,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.calorieDivider}>
                 <Text style={[styles.calorieBalance, {
-                  color: (nutritionData.total_calories || 0) - (summary.calories_burned || 0) > 0 
+                  color: (nutritionData.total_calories || 0) - (summary.calories_burned || 0) > 0
                     ? COLORS.error : COLORS.success
                 }]}>
                   {(nutritionData.total_calories || 0) - (summary.calories_burned || 0) > 0 ? '+' : ''}
@@ -177,7 +156,7 @@ export default function DashboardScreen() {
                 </Text>
                 <Text style={styles.calorieBalanceLabel}>{t('kcal')}</Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.calorieItem}
                 onPress={() => trackingSettings.show_calorie_breakdown !== false && setCalorieModalVisible(true)}
                 activeOpacity={trackingSettings.show_calorie_breakdown !== false ? 0.7 : 1}
@@ -191,35 +170,31 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { 
-                width: `${Math.min(((nutritionData.total_calories || 0) / (nutrientGoals.calories || 2000)) * 100, 100)}%`, 
-                backgroundColor: COLORS.calories 
+              <View style={[styles.progressBarFill, {
+                width: `${Math.min(((nutritionData.total_calories || 0) / (nutrientGoals.calories || 2000)) * 100, 100)}%`,
+                backgroundColor: COLORS.calories
               }]} />
             </View>
-            <Text style={styles.goalText}>
-              {t('goal')}: {nutrientGoals.calories || 2000} {t('kcal')}
-            </Text>
+            <Text style={styles.goalText}>{t('goal')}: {nutrientGoals.calories || 2000} {t('kcal')}</Text>
           </View>
         )}
 
-        {/* Nutrition Progress */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('nutrition')}</Text>
-          {trackingSettings.track_protein !== false && 
+          {trackingSettings.track_protein !== false &&
             renderProgressBar(nutritionData.total_protein || 0, nutrientGoals.protein || 50, COLORS.protein, t('protein'), t('g'))}
-          {trackingSettings.track_carbs !== false && 
+          {trackingSettings.track_carbs !== false &&
             renderProgressBar(nutritionData.total_carbs || 0, nutrientGoals.carbs || 250, COLORS.carbs, t('carbs'), t('g'))}
-          {trackingSettings.track_fat !== false && 
+          {trackingSettings.track_fat !== false &&
             renderProgressBar(nutritionData.total_fat || 0, nutrientGoals.fat || 65, COLORS.fat, t('fat'), t('g'))}
-          {trackingSettings.track_water !== false && 
+          {trackingSettings.track_water !== false &&
             renderProgressBar(nutritionData.total_water || 0, nutrientGoals.water || 2000, COLORS.water, t('water'), t('ml'))}
-          {trackingSettings.track_fiber && 
+          {trackingSettings.track_fiber &&
             renderProgressBar(nutritionData.total_fiber || 0, nutrientGoals.fiber || 25, COLORS.fiber, t('fiber'), t('g'))}
-          {trackingSettings.track_sugar && 
+          {trackingSettings.track_sugar &&
             renderProgressBar(nutritionData.total_sugar || 0, nutrientGoals.sugar || 50, COLORS.sugar, t('sugar'), t('g'))}
         </View>
 
-        {/* Steps Card */}
         {trackingSettings.track_steps !== false && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('steps')}</Text>
@@ -231,48 +206,40 @@ export default function DashboardScreen() {
               </View>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { 
-                width: `${Math.min(((sportData.steps || 0) / (sportGoals.daily_steps || 10000)) * 100, 100)}%`, 
-                backgroundColor: COLORS.primary 
+              <View style={[styles.progressBarFill, {
+                width: `${Math.min(((sportData.steps || 0) / (sportGoals.daily_steps || 10000)) * 100, 100)}%`,
+                backgroundColor: COLORS.primary
               }]} />
             </View>
           </View>
         )}
 
-        {/* Vitals Summary */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('vitals')}</Text>
           <View style={styles.vitalsGrid}>
-            {trackingSettings.track_weight !== false && vitalsData.weight && (
+            {trackingSettings.track_weight !== false && vitals.weight && (
               <View style={styles.vitalItem}>
                 <Ionicons name="scale" size={24} color={COLORS.info} />
-                <Text style={styles.vitalValue}>{vitalsData.weight} {t('kg')}</Text>
+                <Text style={styles.vitalValue}>{vitals.weight} {t('kg')}</Text>
                 <Text style={styles.vitalLabel}>{t('weight')}</Text>
               </View>
             )}
-            {trackingSettings.track_sleep !== false && vitalsData.sleep_duration && (
+            {trackingSettings.track_sleep !== false && vitals.sleep_duration && (
               <View style={styles.vitalItem}>
                 <Ionicons name="moon" size={24} color={COLORS.secondary} />
-                <Text style={styles.vitalValue}>{vitalsData.sleep_duration}h</Text>
+                <Text style={styles.vitalValue}>{vitals.sleep_duration}h</Text>
                 <Text style={styles.vitalLabel}>{t('sleepDuration')}</Text>
               </View>
             )}
-            {trackingSettings.track_resting_heart_rate && vitalsData.resting_heart_rate && (
+            {trackingSettings.track_resting_heart_rate && vitals.resting_heart_rate && (
               <View style={styles.vitalItem}>
                 <Ionicons name="heart" size={24} color={COLORS.error} />
-                <Text style={styles.vitalValue}>{vitalsData.resting_heart_rate}</Text>
+                <Text style={styles.vitalValue}>{vitals.resting_heart_rate}</Text>
                 <Text style={styles.vitalLabel}>{t('restingHeartRate')}</Text>
               </View>
             )}
-            {vitalsData.basal_metabolic_rate && (
-              <View style={styles.vitalItem}>
-                <Ionicons name="flash" size={24} color={COLORS.accent} />
-                <Text style={styles.vitalValue}>{vitalsData.basal_metabolic_rate}</Text>
-                <Text style={styles.vitalLabel}>{t('bmr')}</Text>
-              </View>
-            )}
           </View>
-          {Object.keys(vitalsData).length === 0 && (
+          {Object.keys(vitals).length === 0 && (
             <Text style={styles.emptyText}>{t('noVitalsData')}</Text>
           )}
         </View>
@@ -280,10 +247,8 @@ export default function DashboardScreen() {
     );
   };
 
-  // Render Period View (30 days or all time)
   const renderPeriodView = () => {
     if (!analytics) return null;
-
     const nutritionAvg = analytics.nutrition?.averages || {};
     const sportAvg = analytics.sport?.averages || {};
     const sportTotals = analytics.sport?.totals || {};
@@ -294,20 +259,13 @@ export default function DashboardScreen() {
 
     return (
       <>
-        {/* Period Info */}
         <View style={styles.periodInfo}>
-          <Text style={styles.periodText}>
-            {analytics.start_date} → {analytics.end_date}
-          </Text>
-          <Text style={styles.periodDays}>
-            {daysWithData.nutrition || 0} Tage mit Daten
-          </Text>
+          <Text style={styles.periodText}>{analytics.start_date} -> {analytics.end_date}</Text>
+          <Text style={styles.periodDays}>{daysWithData.nutrition || 0} Tage mit Daten</Text>
         </View>
 
-        {/* Nutrition Averages */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Ø Ernährung pro Tag</Text>
-          
+          <Text style={styles.cardTitle}>Ø Ernahrung pro Tag</Text>
           {trackingSettings.track_calories !== false && (
             <View style={styles.avgRow}>
               <Ionicons name="flame" size={20} color={COLORS.calories} />
@@ -345,7 +303,6 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Weight Change */}
         {trackingSettings.track_weight !== false && (weightData.start || weightData.end) && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('weight')} Entwicklung</Text>
@@ -365,15 +322,11 @@ export default function DashboardScreen() {
             {weightData.change !== null && (
               <View style={styles.changeResult}>
                 {renderChangeIndicator(weightData.change, t('kg'), true)}
-                <Text style={styles.changeResultText}>
-                  {weightData.change < 0 ? 'Abgenommen' : weightData.change > 0 ? 'Zugenommen' : 'Gleich geblieben'}
-                </Text>
               </View>
             )}
           </View>
         )}
 
-        {/* Body Fat Change */}
         {trackingSettings.track_body_fat && (bodyFatData.start || bodyFatData.end) && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('bodyFat')} Entwicklung</Text>
@@ -398,10 +351,8 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Sport Summary */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('sport')} Übersicht</Text>
-          
+          <Text style={styles.cardTitle}>{t('sport')} Ubersicht</Text>
           {trackingSettings.track_steps !== false && (
             <View style={styles.avgRow}>
               <Ionicons name="footsteps" size={20} color={COLORS.primary} />
@@ -432,7 +383,6 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Sleep Average */}
         {trackingSettings.track_sleep !== false && sleepData.average_hours && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Ø {t('sleepDuration')}</Text>
@@ -456,7 +406,6 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
-        {/* Period Selector */}
         <View style={styles.periodSelector}>
           {[
             { key: 'today' as Period, label: t('today') },
@@ -475,15 +424,14 @@ export default function DashboardScreen() {
           ))}
         </View>
 
-        {/* Date Navigation (only for "today") */}
         {selectedPeriod === 'today' && (
           <View style={styles.dateNav}>
             <TouchableOpacity onPress={goToPreviousDay} style={styles.dateNavButton}>
               <Ionicons name="chevron-back" size={28} color={COLORS.text} />
             </TouchableOpacity>
             <Text style={styles.dateText}>{getDisplayDate(selectedDate, language)}</Text>
-            <TouchableOpacity 
-              onPress={goToNextDay} 
+            <TouchableOpacity
+              onPress={goToNextDay}
               style={[styles.dateNavButton, isToday(selectedDate) && styles.dateNavButtonDisabled]}
               disabled={isToday(selectedDate)}
             >
@@ -516,9 +464,7 @@ export default function DashboardScreen() {
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
-
             <ScrollView style={styles.modalScroll}>
-              {/* Total Burned */}
               <View style={styles.totalBurnedCard}>
                 <Ionicons name="flame" size={32} color={COLORS.accent} />
                 <Text style={styles.totalBurnedValue}>
@@ -526,10 +472,7 @@ export default function DashboardScreen() {
                 </Text>
                 <Text style={styles.totalBurnedLabel}>Verbrannte Kalorien heute</Text>
               </View>
-
-              {/* Breakdown Items */}
               <View style={styles.breakdownSection}>
-                {/* NEAT */}
                 <View style={styles.breakdownItem}>
                   <View style={styles.breakdownLeft}>
                     <View style={[styles.breakdownIcon, { backgroundColor: COLORS.primary + '20' }]}>
@@ -537,15 +480,11 @@ export default function DashboardScreen() {
                     </View>
                     <View>
                       <Text style={styles.breakdownTitle}>NEAT</Text>
-                      <Text style={styles.breakdownSubtitle}>Alltagsaktivität (ohne Sport)</Text>
+                      <Text style={styles.breakdownSubtitle}>Alltagsaktivitat (ohne Sport)</Text>
                     </View>
                   </View>
-                  <Text style={styles.breakdownValue}>
-                    {neat !== null ? `${neat} kcal` : '—'}
-                  </Text>
+                  <Text style={styles.breakdownValue}>{neat !== null ? `${neat} kcal` : '---'}</Text>
                 </View>
-
-                {/* Sport/Workouts */}
                 <View style={styles.breakdownItem}>
                   <View style={styles.breakdownLeft}>
                     <View style={[styles.breakdownIcon, { backgroundColor: COLORS.calories + '20' }]}>
@@ -556,62 +495,23 @@ export default function DashboardScreen() {
                       <Text style={styles.breakdownSubtitle}>Aufgezeichnete Workouts</Text>
                     </View>
                   </View>
-                  <Text style={styles.breakdownValue}>
-                    {analytics?.sport?.data?.calories_burned || 0} kcal
-                  </Text>
-                </View>
-
-                {/* Steps Bonus/Malus */}
-                <View style={styles.breakdownItem}>
-                  <View style={styles.breakdownLeft}>
-                    <View style={[styles.breakdownIcon, { backgroundColor: COLORS.secondary + '20' }]}>
-                      <Ionicons name="footsteps" size={20} color={COLORS.secondary} />
-                    </View>
-                    <View>
-                      <Text style={styles.breakdownTitle}>Schritte</Text>
-                      <Text style={styles.breakdownSubtitle}>
-                        {analytics?.sport?.data?.steps || 0} / {sportGoals.daily_steps || '10000'} Ziel
-                      </Text>
-                    </View>
-                  </View>
-                  {(() => {
-                    const steps = analytics?.sport?.data?.steps || 0;
-                    const goalSteps = sportGoals.daily_steps || 10000;
-                    const diff = steps - goalSteps;
-                    const caloriesDiff = Math.round((diff / 1000) * 40); // ~40 kcal per 1000 steps
-                    return (
-                      <Text style={[styles.breakdownValue, { color: diff >= 0 ? COLORS.success : COLORS.error }]}>
-                        {diff >= 0 ? '+' : ''}{caloriesDiff} kcal
-                      </Text>
-                    );
-                  })()}
+                  <Text style={styles.breakdownValue}>{analytics?.sport?.data?.calories_burned || 0} kcal</Text>
                 </View>
               </View>
-
-              {/* Missing Data Warning */}
               {!bmr && (
                 <View style={styles.missingDataWarning}>
                   <Ionicons name="alert-circle" size={20} color={COLORS.accent} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.missingDataTitle}>Fehlende Daten für BMR-Berechnung:</Text>
                     <Text style={styles.missingDataList}>
-                      {!vitalsData?.weight && '• Gewicht (heute in Vitaldaten)\n'}
-                      {!profile?.height && '• Größe (im Profil)\n'}
-                      {!profile?.birth_date && '• Geburtsdatum (im Profil)\n'}
-                      {!profile?.gender && '• Geschlecht (im Profil)'}
+                      {!vitalsData?.weight && '- Gewicht (heute in Vitaldaten)\n'}
+                      {!profile?.height && '- Grosse (im Profil)\n'}
+                      {!profile?.birth_date && '- Geburtsdatum (im Profil)\n'}
+                      {!profile?.gender && '- Geschlecht (im Profil)'}
                     </Text>
                   </View>
                 </View>
               )}
-
-              {/* Calculation Info */}
-              <View style={styles.calcInfoBox}>
-                <Ionicons name="calculator-outline" size={18} color={COLORS.info} />
-                <Text style={styles.calcInfoText}>
-                  Berechnung: NEAT + Sport{'\n'}
-                  Schritte: ±40 kcal pro 1000 Schritte über/unter Ziel
-                </Text>
-              </View>
             </ScrollView>
           </View>
         </View>
@@ -621,394 +521,76 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 4,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  periodButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  periodButtonTextActive: {
-    color: COLORS.text,
-  },
-  dateNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  dateNavButton: {
-    padding: 8,
-  },
-  dateNavButtonDisabled: {
-    opacity: 0.5,
-  },
-  dateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  periodInfo: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  periodText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  periodDays: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 16,
-  },
-  calorieRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  calorieItem: {
-    alignItems: 'center',
-  },
-  calorieValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: 8,
-  },
-  calorieLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  calorieDivider: {
-    alignItems: 'center',
-  },
-  calorieBalance: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  calorieBalanceLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  progressItem: {
-    marginBottom: 12,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  progressLabel: {
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  progressValue: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  goalText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  stepsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  stepsInfo: {
-    marginLeft: 16,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  stepsValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  stepsGoal: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  vitalsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-  },
-  vitalItem: {
-    alignItems: 'center',
-    width: '45%',
-    marginBottom: 16,
-  },
-  vitalValue: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 8,
-  },
-  vitalLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
-  avgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceLight,
-  },
-  avgLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-    marginLeft: 12,
-  },
-  avgValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  changeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  changeItem: {
-    alignItems: 'center',
-  },
-  changeLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  changeValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  changeArrow: {
-    paddingHorizontal: 16,
-  },
-  changeResult: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  changeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  changeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  changeResultText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  sleepAvg: {
-    alignItems: 'center',
-  },
-  sleepAvgValue: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: 8,
-  },
-  sleepAvgLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceLight,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  modalScroll: {
-    padding: 16,
-  },
-  totalBurnedCard: {
-    backgroundColor: COLORS.accent + '15',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  totalBurnedValue: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: COLORS.accent,
-    marginTop: 8,
-  },
-  totalBurnedLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  breakdownSection: {
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  breakdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surface,
-  },
-  breakdownLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  breakdownIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  breakdownTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  breakdownSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  breakdownValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  missingDataWarning: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.accent + '15',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 10,
-  },
-  missingDataTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.accent,
-    marginBottom: 4,
-  },
-  missingDataList: {
-    fontSize: 13,
-    color: COLORS.accent,
-    lineHeight: 18,
-  },
-  calcInfoBox: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.info + '15',
-    padding: 12,
-    borderRadius: 8,
-    gap: 10,
-    marginBottom: 16,
-  },
-  calcInfoText: {
-    fontSize: 13,
-    color: COLORS.info,
-    flex: 1,
-    lineHeight: 18,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
+  scrollView: { flex: 1 },
+  periodSelector: { flexDirection: 'row', marginHorizontal: 16, marginTop: 8, marginBottom: 8, backgroundColor: COLORS.surface, borderRadius: 12, padding: 4 },
+  periodButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  periodButtonActive: { backgroundColor: COLORS.primary },
+  periodButtonText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  periodButtonTextActive: { color: COLORS.text },
+  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
+  dateNavButton: { padding: 8 },
+  dateNavButtonDisabled: { opacity: 0.5 },
+  dateText: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  periodInfo: { alignItems: 'center', paddingVertical: 12 },
+  periodText: { fontSize: 14, color: COLORS.textSecondary },
+  periodDays: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
+  card: { backgroundColor: COLORS.surface, marginHorizontal: 16, marginBottom: 16, borderRadius: 16, padding: 16 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16 },
+  calorieRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 16 },
+  calorieItem: { alignItems: 'center' },
+  calorieValue: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginTop: 8 },
+  calorieLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
+  calorieDivider: { alignItems: 'center' },
+  calorieBalance: { fontSize: 28, fontWeight: '700' },
+  calorieBalanceLabel: { fontSize: 12, color: COLORS.textSecondary },
+  progressItem: { marginBottom: 12 },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  progressLabel: { fontSize: 14, color: COLORS.text },
+  progressValue: { fontSize: 14, color: COLORS.textSecondary },
+  progressBarBg: { height: 8, backgroundColor: COLORS.surfaceLight, borderRadius: 4, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 4 },
+  goalText: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 8 },
+  stepsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  stepsInfo: { marginLeft: 16, flexDirection: 'row', alignItems: 'baseline' },
+  stepsValue: { fontSize: 32, fontWeight: '700', color: COLORS.text },
+  stepsGoal: { fontSize: 16, color: COLORS.textSecondary, marginLeft: 4 },
+  vitalsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around' },
+  vitalItem: { alignItems: 'center', width: '45%', marginBottom: 16 },
+  vitalValue: { fontSize: 20, fontWeight: '600', color: COLORS.text, marginTop: 8 },
+  vitalLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
+  emptyText: { textAlign: 'center', color: COLORS.textSecondary, fontSize: 14 },
+  avgRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceLight },
+  avgLabel: { flex: 1, fontSize: 15, color: COLORS.text, marginLeft: 12 },
+  avgValue: { fontSize: 16, fontWeight: '600', color: COLORS.primary },
+  changeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginBottom: 16 },
+  changeItem: { alignItems: 'center' },
+  changeLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
+  changeValue: { fontSize: 24, fontWeight: '700', color: COLORS.text },
+  changeArrow: { paddingHorizontal: 16 },
+  changeResult: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  changeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, gap: 4 },
+  changeText: { fontSize: 14, fontWeight: '600' },
+  sleepAvg: { alignItems: 'center' },
+  sleepAvgValue: { fontSize: 36, fontWeight: '700', color: COLORS.text, marginTop: 8 },
+  sleepAvgLabel: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%', paddingBottom: Platform.OS === 'ios' ? 34 : 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceLight },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  modalScroll: { padding: 16 },
+  totalBurnedCard: { backgroundColor: COLORS.accent + '15', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20 },
+  totalBurnedValue: { fontSize: 36, fontWeight: '700', color: COLORS.accent, marginTop: 8 },
+  totalBurnedLabel: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  breakdownSection: { backgroundColor: COLORS.surfaceLight, borderRadius: 12, marginBottom: 16 },
+  breakdownItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.surface },
+  breakdownLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  breakdownIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  breakdownTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text },
+  breakdownSubtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  breakdownValue: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  missingDataWarning: { flexDirection: 'row', backgroundColor: COLORS.accent + '15', padding: 12, borderRadius: 8, marginBottom: 16, gap: 10 },
+  missingDataTitle: { fontSize: 14, fontWeight: '600', color: COLORS.accent, marginBottom: 4 },
+  missingDataList: { fontSize: 13, color: COLORS.accent, lineHeight: 18 },
 });

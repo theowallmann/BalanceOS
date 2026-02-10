@@ -1,379 +1,128 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Animated,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal,
+  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
-import { nutritionApi, profileApi } from '../src/services/api';
+import { nutritionService, nutritionSummaryService, profileService } from '../src/database/services';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday, getCurrentTime } from '../src/utils/date';
-
-interface NutritionEntry {
-  id: string;
-  date: string;
-  time: string;
-  description: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  fiber: number;
-  sugar: number;
-  salt: number;
-  water: number;
-  ai_estimated: boolean;
-}
 
 export default function NutritionScreen() {
   const { t, language } = useLanguage();
-  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<NutritionEntry | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  
-  // Speech-to-Text states
-  const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const [formData, setFormData] = useState({
-    description: '',
-    calories: '',
-    protein: '',
-    carbs: '',
-    fat: '',
-    fiber: '',
-    sugar: '',
-    salt: '',
-    water: '',
+    description: '', calories: '', protein: '', carbs: '', fat: '',
+    fiber: '', sugar: '', salt: '', water: '',
   });
 
   const dateString = getDateString(selectedDate);
 
-  const { data: entries = [], isLoading, refetch } = useQuery({
-    queryKey: ['nutrition', dateString],
-    queryFn: () => nutritionApi.getByDate(dateString).then(res => res.data),
-  });
-
-  const { data: summary } = useQuery({
-    queryKey: ['nutritionSummary', dateString],
-    queryFn: () => nutritionApi.getSummary(dateString).then(res => res.data),
-  });
-
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => profileApi.get().then(res => res.data),
-  });
-
-  // Pulse animation for recording indicator
-  const startPulseAnimation = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.3, duration: 500, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ])
-    ).start();
-  };
-
-  const stopPulseAnimation = () => {
-    pulseAnim.stopAnimation();
-    pulseAnim.setValue(1);
-  };
-
-  // Start recording
-  const startRecording = async () => {
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      // Request permissions
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Berechtigung benötigt', 'Bitte erlaube den Zugriff auf das Mikrofon.');
-        return;
-      }
-
-      // Set audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      // Start recording
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      
-      setRecording(newRecording);
-      setIsRecording(true);
-      startPulseAnimation();
+      const [ent, sum, prof] = await Promise.all([
+        nutritionService.getByDate(dateString),
+        nutritionSummaryService.getByDate(dateString),
+        profileService.get(),
+      ]);
+      setEntries(ent);
+      setSummary(sum);
+      setProfile(prof);
     } catch (error) {
-      console.error('Failed to start recording:', error);
-      Alert.alert('Fehler', 'Aufnahme konnte nicht gestartet werden.');
-    }
-  };
-
-  // Stop recording and transcribe
-  const stopRecording = async () => {
-    if (!recording) return;
-
-    try {
-      setIsRecording(false);
-      stopPulseAnimation();
-      setIsTranscribing(true);
-
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
-
-      if (!uri) {
-        throw new Error('No recording URI');
-      }
-
-      // Convert to blob and send to API
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      // Send to speech-to-text API
-      const formData = new FormData();
-      formData.append('file', {
-        uri: uri,
-        type: 'audio/m4a',
-        name: 'recording.m4a',
-      } as any);
-
-      const apiResponse = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL || ''}/api/speech-to-text`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error('Transcription failed');
-      }
-
-      const result = await apiResponse.json();
-      
-      if (result.text) {
-        // Set the transcribed text as description and trigger AI estimation
-        setFormData(prev => ({ ...prev, description: result.text }));
-        // Auto-trigger AI estimation with the transcribed text
-        handleAiEstimate(result.text);
-      }
-
-    } catch (error) {
-      console.error('Failed to process recording:', error);
-      Alert.alert('Fehler', 'Spracherkennung fehlgeschlagen. Bitte versuche es erneut.');
+      console.error('Error loading nutrition data:', error);
     } finally {
-      setIsTranscribing(false);
+      setIsLoading(false);
     }
-  };
+  }, [dateString]);
 
-  // AI estimate with optional text parameter
-  const handleAiEstimate = async (textOverride?: string) => {
-    const description = textOverride || formData.description;
-    if (!description.trim()) {
-      Alert.alert('Hinweis', 'Bitte beschreibe zuerst was du gegessen hast.');
-      return;
-    }
-
-    setIsAiLoading(true);
-    try {
-      const response = await nutritionApi.estimateFromText(description);
-      const estimated = response.data;
-      
-      setFormData(prev => ({
-        ...prev,
-        description: description,
-        calories: estimated.calories?.toString() || '',
-        protein: estimated.protein?.toString() || '',
-        carbs: estimated.carbs?.toString() || '',
-        fat: estimated.fat?.toString() || '',
-        fiber: estimated.fiber?.toString() || '',
-        sugar: estimated.sugar?.toString() || '',
-        salt: estimated.salt?.toString() || '',
-        water: estimated.water?.toString() || '',
-      }));
-    } catch (error) {
-      Alert.alert('Fehler', 'KI-Schätzung fehlgeschlagen');
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ['nutritionSummary', dateString] });
-    }, [dateString])
-  );
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => nutritionApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutrition', dateString] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionSummary', dateString] });
-      closeModal();
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => nutritionApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutrition', dateString] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionSummary', dateString] });
-      closeModal();
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => nutritionApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutrition', dateString] });
-      queryClient.invalidateQueries({ queryKey: ['nutritionSummary', dateString] });
-    },
-  });
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const goToPreviousDay = () => setSelectedDate(getPreviousDay(selectedDate));
-  const goToNextDay = () => {
-    if (!isToday(selectedDate)) {
-      setSelectedDate(getNextDay(selectedDate));
-    }
-  };
+  const goToNextDay = () => { if (!isToday(selectedDate)) setSelectedDate(getNextDay(selectedDate)); };
 
   const openAddModal = () => {
     setEditingEntry(null);
-    setFormData({
-      description: '',
-      calories: '',
-      protein: '',
-      carbs: '',
-      fat: '',
-      fiber: '',
-      sugar: '',
-      salt: '',
-      water: '',
-    });
+    setFormData({ description: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', sugar: '', salt: '', water: '' });
     setSelectedImage(null);
     setModalVisible(true);
   };
 
-  const openEditModal = (entry: NutritionEntry) => {
+  const openEditModal = (entry: any) => {
     setEditingEntry(entry);
     setFormData({
-      description: entry.description,
-      calories: entry.calories?.toString() || '',
-      protein: entry.protein?.toString() || '',
-      carbs: entry.carbs?.toString() || '',
-      fat: entry.fat?.toString() || '',
-      fiber: entry.fiber?.toString() || '',
-      sugar: entry.sugar?.toString() || '',
-      salt: entry.salt?.toString() || '',
+      description: entry.description, calories: entry.calories?.toString() || '',
+      protein: entry.protein?.toString() || '', carbs: entry.carbs?.toString() || '',
+      fat: entry.fat?.toString() || '', fiber: entry.fiber?.toString() || '',
+      sugar: entry.sugar?.toString() || '', salt: entry.salt?.toString() || '',
       water: entry.water?.toString() || '',
     });
     setSelectedImage(null);
     setModalVisible(true);
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setEditingEntry(null);
-    setSelectedImage(null);
+  const closeModal = () => { setModalVisible(false); setEditingEntry(null); setSelectedImage(null); };
+
+  const handleSave = async () => {
+    if (!formData.description.trim()) { Alert.alert('Fehler', 'Bitte gib eine Beschreibung ein'); return; }
+    const data = {
+      date: dateString, time: getCurrentTime(), description: formData.description,
+      calories: parseInt(formData.calories) || 0, protein: parseFloat(formData.protein) || 0,
+      carbs: parseFloat(formData.carbs) || 0, fat: parseFloat(formData.fat) || 0,
+      fiber: parseFloat(formData.fiber) || 0, sugar: parseFloat(formData.sugar) || 0,
+      salt: parseFloat(formData.salt) || 0, water: parseInt(formData.water) || 0,
+    };
+    try {
+      if (editingEntry) {
+        await nutritionService.update(editingEntry.id, data);
+      } else {
+        await nutritionService.create(data);
+      }
+      closeModal();
+      loadData();
+    } catch (error) {
+      Alert.alert('Fehler', 'Speichern fehlgeschlagen');
+    }
   };
 
-  const handleSave = () => {
-    if (!formData.description.trim()) {
-      Alert.alert('Fehler', 'Bitte gib eine Beschreibung ein');
-      return;
-    }
-
-    const data = {
-      date: dateString,
-      time: getCurrentTime(),
-      description: formData.description,
-      calories: parseInt(formData.calories) || 0,
-      protein: parseFloat(formData.protein) || 0,
-      carbs: parseFloat(formData.carbs) || 0,
-      fat: parseFloat(formData.fat) || 0,
-      fiber: parseFloat(formData.fiber) || 0,
-      sugar: parseFloat(formData.sugar) || 0,
-      salt: parseFloat(formData.salt) || 0,
-      water: parseInt(formData.water) || 0,
-    };
-
-    if (editingEntry) {
-      updateMutation.mutate({ id: editingEntry.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+  const handleDelete = (entry: any) => {
+    Alert.alert(t('delete'), 'Möchtest du diesen Eintrag wirklich löschen?', [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
+        await nutritionService.delete(entry.id);
+        loadData();
+      }},
+    ]);
   };
 
   const handleTakePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Kamerazugriff');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      setSelectedImage(result.assets[0].base64);
-    }
+    if (!permissionResult.granted) { Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Kamerazugriff'); return; }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.5, base64: true });
+    if (!result.canceled && result.assets[0].base64) setSelectedImage(result.assets[0].base64);
   };
 
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Zugriff auf die Galerie');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      setSelectedImage(result.assets[0].base64);
-    }
+    if (!permissionResult.granted) { Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Zugriff auf die Galerie'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.5, base64: true });
+    if (!result.canceled && result.assets[0].base64) setSelectedImage(result.assets[0].base64);
   };
 
-  const handleDelete = (entry: NutritionEntry) => {
-    Alert.alert(
-      t('delete'),
-      'Möchtest du diesen Eintrag wirklich löschen?',
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteMutation.mutate(entry.id) },
-      ]
-    );
+  const handleAiEstimate = () => {
+    Alert.alert('KI-Feature', 'Bitte konfiguriere deinen ChatGPT API Key in den Einstellungen, um die KI-Schatzung zu nutzen.');
   };
 
   const nutrientGoals = profile?.nutrient_goals || {};
@@ -389,26 +138,17 @@ export default function NutritionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        {/* Date Navigation */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.dateNav}>
           <TouchableOpacity onPress={goToPreviousDay} style={styles.dateNavButton}>
             <Ionicons name="chevron-back" size={28} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.dateText}>{getDisplayDate(selectedDate, language)}</Text>
-          <TouchableOpacity 
-            onPress={goToNextDay} 
-            style={[styles.dateNavButton, isToday(selectedDate) && styles.dateNavButtonDisabled]}
-            disabled={isToday(selectedDate)}
-          >
+          <TouchableOpacity onPress={goToNextDay} style={[styles.dateNavButton, isToday(selectedDate) && styles.dateNavButtonDisabled]} disabled={isToday(selectedDate)}>
             <Ionicons name="chevron-forward" size={28} color={isToday(selectedDate) ? COLORS.textSecondary : COLORS.text} />
           </TouchableOpacity>
         </View>
 
-        {/* Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
@@ -432,46 +172,26 @@ export default function NutritionScreen() {
           </View>
         </View>
 
-        {/* Entries List */}
         <ScrollView style={styles.entriesList}>
           {isLoading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : entries.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="restaurant-outline" size={64} color={COLORS.textSecondary} />
-              <Text style={styles.emptyText}>Noch keine Einträge für diesen Tag</Text>
+              <Text style={styles.emptyText}>Noch keine Eintrage für diesen Tag</Text>
             </View>
           ) : (
-            entries.map((entry: NutritionEntry) => (
-              <TouchableOpacity 
-                key={entry.id} 
-                style={styles.entryCard}
-                onPress={() => openEditModal(entry)}
-                onLongPress={() => handleDelete(entry)}
-              >
+            entries.map((entry: any) => (
+              <TouchableOpacity key={entry.id} style={styles.entryCard} onPress={() => openEditModal(entry)} onLongPress={() => handleDelete(entry)}>
                 <View style={styles.entryHeader}>
                   <Text style={styles.entryTime}>{entry.time}</Text>
-                  {entry.ai_estimated && (
-                    <View style={styles.aiBadge}>
-                      <Ionicons name="sparkles" size={12} color={COLORS.accent} />
-                      <Text style={styles.aiBadgeText}>KI</Text>
-                    </View>
-                  )}
                 </View>
                 <Text style={styles.entryDescription}>{entry.description}</Text>
                 <View style={styles.entryNutrients}>
-                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.calories + '30' }]}>
-                    {entry.calories} kcal
-                  </Text>
-                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.protein + '30' }]}>
-                    {entry.protein}g P
-                  </Text>
-                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.carbs + '30' }]}>
-                    {entry.carbs}g K
-                  </Text>
-                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.fat + '30' }]}>
-                    {entry.fat}g F
-                  </Text>
+                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.calories + '30' }]}>{entry.calories} kcal</Text>
+                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.protein + '30' }]}>{entry.protein}g P</Text>
+                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.carbs + '30' }]}>{entry.carbs}g K</Text>
+                  <Text style={[styles.nutrientBadge, { backgroundColor: COLORS.fat + '30' }]}>{entry.fat}g F</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -479,47 +199,26 @@ export default function NutritionScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Add Button */}
         <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
           <Ionicons name="add" size={32} color={COLORS.text} />
         </TouchableOpacity>
 
-        {/* Add/Edit Modal */}
-        <Modal
-          visible={modalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={closeModal}
-        >
+        <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={closeModal}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingEntry ? t('edit') : t('addEntry')}
-                </Text>
-                <TouchableOpacity onPress={closeModal}>
-                  <Ionicons name="close" size={28} color={COLORS.text} />
-                </TouchableOpacity>
+                <Text style={styles.modalTitle}>{editingEntry ? t('edit') : t('addEntry')}</Text>
+                <TouchableOpacity onPress={closeModal}><Ionicons name="close" size={28} color={COLORS.text} /></TouchableOpacity>
               </View>
-
               <ScrollView style={styles.modalScroll}>
-                {/* Image Preview */}
                 {selectedImage && (
                   <View style={styles.imagePreviewContainer}>
-                    <Image 
-                      source={{ uri: `data:image/jpeg;base64,${selectedImage}` }} 
-                      style={styles.imagePreview} 
-                    />
-                    <TouchableOpacity 
-                      style={styles.removeImageButton}
-                      onPress={() => setSelectedImage(null)}
-                    >
+                    <Image source={{ uri: `data:image/jpeg;base64,${selectedImage}` }} style={styles.imagePreview} />
+                    <TouchableOpacity style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
                       <Ionicons name="close-circle" size={24} color={COLORS.error} />
                     </TouchableOpacity>
                   </View>
                 )}
-
-                {/* Photo Buttons */}
                 <View style={styles.photoButtons}>
                   <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
                     <Ionicons name="camera" size={24} color={COLORS.primary} />
@@ -530,169 +229,31 @@ export default function NutritionScreen() {
                     <Text style={styles.photoButtonText}>Galerie</Text>
                   </TouchableOpacity>
                 </View>
-
-                {/* Description with Voice Input */}
                 <Text style={styles.inputLabel}>{t('mealDescription')}</Text>
-                <View style={styles.descriptionContainer}>
-                  <TextInput
-                    style={[styles.textInput, styles.descriptionInput]}
-                    value={formData.description}
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                    placeholder={language === 'de' ? "z.B. Haferflocken mit Banane" : "e.g. Oatmeal with banana"}
-                    placeholderTextColor={COLORS.textSecondary}
-                    multiline
-                  />
-                  {/* Voice Input Button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.voiceButton,
-                      isRecording && styles.voiceButtonRecording,
-                    ]}
-                    onPress={isRecording ? stopRecording : startRecording}
-                    disabled={isTranscribing}
-                  >
-                    {isTranscribing ? (
-                      <ActivityIndicator size="small" color={COLORS.text} />
-                    ) : (
-                      <Animated.View style={{ transform: [{ scale: isRecording ? pulseAnim : 1 }] }}>
-                        <Ionicons 
-                          name={isRecording ? "stop" : "mic"} 
-                          size={24} 
-                          color={isRecording ? COLORS.error : COLORS.text} 
-                        />
-                      </Animated.View>
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {isRecording && (
-                  <Text style={styles.recordingHint}>
-                    {language === 'de' ? '🎙️ Aufnahme läuft... Tippe zum Stoppen' : '🎙️ Recording... Tap to stop'}
-                  </Text>
-                )}
-                {isTranscribing && (
-                  <Text style={styles.recordingHint}>
-                    {language === 'de' ? '⏳ Wird transkribiert...' : '⏳ Transcribing...'}
-                  </Text>
-                )}
-
-                {/* AI Estimate Button */}
-                <TouchableOpacity 
-                  style={styles.aiButton} 
-                  onPress={() => handleAiEstimate()}
-                  disabled={isAiLoading}
-                >
-                  {isAiLoading ? (
-                    <ActivityIndicator color={COLORS.text} />
-                  ) : (
-                    <>
-                      <Ionicons name="sparkles" size={20} color={COLORS.text} />
-                      <Text style={styles.aiButtonText}>{t('aiEstimate')}</Text>
-                    </>
-                  )}
+                <TextInput style={[styles.textInput, { minHeight: 50 }]} value={formData.description} onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))} placeholder={language === 'de' ? "z.B. Haferflocken mit Banane" : "e.g. Oatmeal with banana"} placeholderTextColor={COLORS.textSecondary} multiline />
+                <TouchableOpacity style={styles.aiButton} onPress={handleAiEstimate}>
+                  <Ionicons name="sparkles" size={20} color={COLORS.text} />
+                  <Text style={styles.aiButtonText}>{t('aiEstimate')}</Text>
                 </TouchableOpacity>
-
-                {/* Nutrient Inputs */}
                 <View style={styles.nutrientInputs}>
                   <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('calories')}</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.calories}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, calories: text }))}
-                        keyboardType="numeric"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('protein')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.protein}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, protein: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('calories')}</Text><TextInput style={styles.numberInput} value={formData.calories} onChangeText={(text) => setFormData(prev => ({ ...prev, calories: text }))} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('protein')} (g)</Text><TextInput style={styles.numberInput} value={formData.protein} onChangeText={(text) => setFormData(prev => ({ ...prev, protein: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
                   </View>
                   <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('carbs')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.carbs}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, carbs: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('fat')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.fat}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, fat: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('carbs')} (g)</Text><TextInput style={styles.numberInput} value={formData.carbs} onChangeText={(text) => setFormData(prev => ({ ...prev, carbs: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('fat')} (g)</Text><TextInput style={styles.numberInput} value={formData.fat} onChangeText={(text) => setFormData(prev => ({ ...prev, fat: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
                   </View>
                   <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('fiber')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.fiber}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, fiber: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('sugar')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.sugar}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, sugar: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('fiber')} (g)</Text><TextInput style={styles.numberInput} value={formData.fiber} onChangeText={(text) => setFormData(prev => ({ ...prev, fiber: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('sugar')} (g)</Text><TextInput style={styles.numberInput} value={formData.sugar} onChangeText={(text) => setFormData(prev => ({ ...prev, sugar: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
                   </View>
                   <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('salt')} (g)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.salt}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, salt: text }))}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>{t('water')} (ml)</Text>
-                      <TextInput
-                        style={styles.numberInput}
-                        value={formData.water}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, water: text }))}
-                        keyboardType="numeric"
-                        placeholder="0"
-                        placeholderTextColor={COLORS.textSecondary}
-                      />
-                    </View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('salt')} (g)</Text><TextInput style={styles.numberInput} value={formData.salt} onChangeText={(text) => setFormData(prev => ({ ...prev, salt: text }))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
+                    <View style={styles.inputGroup}><Text style={styles.inputLabel}>{t('water')} (ml)</Text><TextInput style={styles.numberInput} value={formData.water} onChangeText={(text) => setFormData(prev => ({ ...prev, water: text }))} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textSecondary} /></View>
                   </View>
                 </View>
               </ScrollView>
-
-              {/* Save Button */}
               <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                 <Text style={styles.saveButtonText}>{t('save')}</Text>
               </TouchableOpacity>
@@ -705,293 +266,47 @@ export default function NutritionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  dateNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dateNavButton: {
-    padding: 8,
-  },
-  dateNavButtonDisabled: {
-    opacity: 0.5,
-  },
-  dateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  summaryCard: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  summaryGoal: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  miniProgressBg: {
-    width: 60,
-    height: 4,
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: 2,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  miniProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  entriesList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginTop: 16,
-  },
-  entryCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  entryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  entryTime: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  aiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.accent + '30',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    color: COLORS.accent,
-    marginLeft: 4,
-    fontWeight: '600',
-  },
-  entryDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  entryNutrients: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  nutrientBadge: {
-    fontSize: 12,
-    color: COLORS.text,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  addButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceLight,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  modalScroll: {
-    padding: 16,
-  },
-  imagePreviewContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  photoButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  photoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceLight,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  photoButtonText: {
-    color: COLORS.text,
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-  },
-  textInput: {
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: 12,
-    padding: 14,
-    color: COLORS.text,
-    fontSize: 16,
-    marginBottom: 16,
-    minHeight: 50,
-  },
-  descriptionContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 8,
-  },
-  descriptionInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  voiceButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voiceButtonRecording: {
-    backgroundColor: COLORS.error + '30',
-  },
-  recordingHint: {
-    fontSize: 12,
-    color: COLORS.accent,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  aiButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  aiButtonText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  nutrientInputs: {
-    gap: 12,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  inputGroup: {
-    flex: 1,
-  },
-  numberInput: {
-    backgroundColor: COLORS.surfaceLight,
-    borderRadius: 12,
-    padding: 14,
-    color: COLORS.text,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  dateNavButton: { padding: 8 }, dateNavButtonDisabled: { opacity: 0.5 },
+  dateText: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  summaryCard: { backgroundColor: COLORS.surface, marginHorizontal: 16, marginBottom: 16, borderRadius: 16, padding: 16 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  summaryItem: { alignItems: 'center', flex: 1 },
+  summaryLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
+  summaryValue: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  summaryGoal: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  miniProgressBg: { width: 60, height: 4, backgroundColor: COLORS.surfaceLight, borderRadius: 2, marginTop: 4, overflow: 'hidden' },
+  miniProgressFill: { height: '100%', borderRadius: 2 },
+  entriesList: { flex: 1, paddingHorizontal: 16 },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
+  emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16 },
+  entryCard: { backgroundColor: COLORS.surface, borderRadius: 12, padding: 16, marginBottom: 12 },
+  entryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  entryTime: { fontSize: 14, color: COLORS.textSecondary },
+  entryDescription: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  entryNutrients: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  nutrientBadge: { fontSize: 12, color: COLORS.text, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
+  addButton: { position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%', paddingBottom: Platform.OS === 'ios' ? 34 : 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.surfaceLight },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  modalScroll: { padding: 16 },
+  imagePreviewContainer: { position: 'relative', marginBottom: 16 },
+  imagePreview: { width: '100%', height: 200, borderRadius: 12 },
+  removeImageButton: { position: 'absolute', top: 8, right: 8 },
+  photoButtons: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
+  photoButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceLight, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12 },
+  photoButtonText: { color: COLORS.text, marginLeft: 8, fontWeight: '500' },
+  inputLabel: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 6 },
+  textInput: { backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 14, color: COLORS.text, fontSize: 16, marginBottom: 16 },
+  aiButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.accent, borderRadius: 12, padding: 14, marginBottom: 20 },
+  aiButtonText: { color: COLORS.text, fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  nutrientInputs: { gap: 12 },
+  inputRow: { flexDirection: 'row', gap: 12 },
+  inputGroup: { flex: 1 },
+  numberInput: { backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 14, color: COLORS.text, fontSize: 16, textAlign: 'center' },
+  saveButton: { backgroundColor: COLORS.primary, marginHorizontal: 16, borderRadius: 12, padding: 16, alignItems: 'center' },
+  saveButtonText: { color: COLORS.text, fontSize: 18, fontWeight: '700' },
 });
