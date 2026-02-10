@@ -32,24 +32,47 @@ const COLORS = {
   success: '#4CAF50',
 };
 
-// Preloader component
+// Preloader component with better splash screen
 function DataPreloader({ children }: { children: React.ReactNode }) {
   const { preloadAllData, isPreloaded, isLoading } = useDataStore();
+  const { t } = useLanguage();
   const [showSplash, setShowSplash] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   
   useEffect(() => {
     const loadData = async () => {
-      await preloadAllData();
-      setTimeout(() => setShowSplash(false), 500);
+      // Simulate progress while loading
+      const progressInterval = setInterval(() => {
+        setLoadingProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      try {
+        await preloadAllData();
+        setLoadingProgress(100);
+      } catch (error) {
+        console.error('Preload error:', error);
+      } finally {
+        clearInterval(progressInterval);
+        // Short delay for smooth transition
+        setTimeout(() => setShowSplash(false), 300);
+      }
     };
     loadData();
   }, []);
   
-  if (showSplash && isLoading && !isPreloaded) {
+  if (showSplash) {
     return (
       <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.splashText}>Daten werden geladen...</Text>
+        <View style={styles.splashContent}>
+          <Ionicons name="fitness" size={64} color={COLORS.primary} />
+          <Text style={styles.splashTitle}>HealthMate</Text>
+          <View style={styles.progressBarContainer}>
+            <View style={[styles.progressBarFill, { width: `${loadingProgress}%` }]} />
+          </View>
+          <Text style={styles.splashText}>
+            {loadingProgress < 100 ? 'Daten werden geladen...' : 'Fertig!'}
+          </Text>
+        </View>
       </View>
     );
   }
