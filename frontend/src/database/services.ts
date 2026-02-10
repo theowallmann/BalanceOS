@@ -1,8 +1,11 @@
-import { db, generateId, initDatabase } from './schema';
+import { db, generateId, initDatabase, memoryDb, saveWebStorage, isWeb } from './schema';
 
 // ==================== PROFILE ====================
 export const profileService = {
   async get() {
+    if (isWeb) {
+      return memoryDb.profile;
+    }
     const result = await db.getFirstAsync<any>('SELECT * FROM profile WHERE id = 1');
     if (result) {
       return {
@@ -17,6 +20,12 @@ export const profileService = {
   },
 
   async update(data: any) {
+    if (isWeb) {
+      memoryDb.profile = { ...memoryDb.profile, ...data };
+      await saveWebStorage('profile');
+      return memoryDb.profile;
+    }
+
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -69,6 +78,9 @@ export const profileService = {
 // ==================== NUTRITION ====================
 export const nutritionService = {
   async getByDate(date: string) {
+    if (isWeb) {
+      return memoryDb.nutrition.filter((e: any) => e.date === date).sort((a: any, b: any) => b.time?.localeCompare(a.time));
+    }
     const results = await db.getAllAsync<any>(
       'SELECT * FROM nutrition_entries WHERE date = ? ORDER BY time DESC',
       [date]
@@ -78,6 +90,28 @@ export const nutritionService = {
 
   async create(data: any) {
     const id = generateId();
+    const entry = {
+      id,
+      date: data.date,
+      time: data.time || new Date().toTimeString().slice(0, 5),
+      description: data.description || '',
+      calories: data.calories || 0,
+      protein: data.protein || 0,
+      carbs: data.carbs || 0,
+      fat: data.fat || 0,
+      fiber: data.fiber || 0,
+      sugar: data.sugar || 0,
+      salt: data.salt || 0,
+      water: data.water || 0,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isWeb) {
+      memoryDb.nutrition.push(entry);
+      await saveWebStorage('nutrition');
+      return entry;
+    }
+
     await db.runAsync(
       `INSERT INTO nutrition_entries (id, date, time, description, calories, protein, carbs, fat, fiber, sugar, salt, water)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -100,6 +134,15 @@ export const nutritionService = {
   },
 
   async update(id: string, data: any) {
+    if (isWeb) {
+      const index = memoryDb.nutrition.findIndex((e: any) => e.id === id);
+      if (index !== -1) {
+        memoryDb.nutrition[index] = { ...memoryDb.nutrition[index], ...data };
+        await saveWebStorage('nutrition');
+      }
+      return { id, ...data };
+    }
+
     await db.runAsync(
       `UPDATE nutrition_entries SET 
        description = ?, calories = ?, protein = ?, carbs = ?, fat = ?, 
@@ -122,10 +165,20 @@ export const nutritionService = {
   },
 
   async delete(id: string) {
+    if (isWeb) {
+      memoryDb.nutrition = memoryDb.nutrition.filter((e: any) => e.id !== id);
+      await saveWebStorage('nutrition');
+      return;
+    }
     await db.runAsync('DELETE FROM nutrition_entries WHERE id = ?', [id]);
   },
 
   async getRange(startDate: string, endDate: string) {
+    if (isWeb) {
+      return memoryDb.nutrition
+        .filter((e: any) => e.date >= startDate && e.date <= endDate)
+        .sort((a: any, b: any) => b.date.localeCompare(a.date) || b.time?.localeCompare(a.time));
+    }
     return await db.getAllAsync<any>(
       'SELECT * FROM nutrition_entries WHERE date >= ? AND date <= ? ORDER BY date DESC, time DESC',
       [startDate, endDate]
@@ -136,6 +189,9 @@ export const nutritionService = {
 // ==================== VITALS ====================
 export const vitalsService = {
   async getByDate(date: string) {
+    if (isWeb) {
+      return memoryDb.vitals.find((v: any) => v.date === date) || null;
+    }
     return await db.getFirstAsync<any>(
       'SELECT * FROM vitals WHERE date = ?',
       [date]
@@ -143,6 +199,17 @@ export const vitalsService = {
   },
 
   async createOrUpdate(date: string, data: any) {
+    if (isWeb) {
+      const existing = memoryDb.vitals.find((v: any) => v.date === date);
+      if (existing) {
+        Object.assign(existing, data, { updated_at: new Date().toISOString() });
+      } else {
+        memoryDb.vitals.push({ id: generateId(), date, ...data, created_at: new Date().toISOString() });
+      }
+      await saveWebStorage('vitals');
+      return this.getByDate(date);
+    }
+
     const existing = await this.getByDate(date);
     
     if (existing) {
@@ -184,8 +251,24 @@ export const vitalsService = {
   },
 
   async getLatest() {
+    if (isWeb) {
+      const sorted = [...memoryDb.vitals].sort((a: any, b: any) => b.date.localeCompare(a.date));
+      return sorted[0] || null;
+    }
     return await db.getFirstAsync<any>(
       'SELECT * FROM vitals ORDER BY date DESC LIMIT 1'
+    );
+  },
+
+  async getRange(startDate: string, endDate: string) {
+    if (isWeb) {
+      return memoryDb.vitals
+        .filter((v: any) => v.date >= startDate && v.date <= endDate)
+        .sort((a: any, b: any) => a.date.localeCompare(b.date));
+    }
+    return await db.getAllAsync<any>(
+      'SELECT * FROM vitals WHERE date >= ? AND date <= ? ORDER BY date',
+      [startDate, endDate]
     );
   },
 };
@@ -193,6 +276,17 @@ export const vitalsService = {
 // ==================== SPORT ====================
 export const sportService = {
   async getByDate(date: string) {
+    if (isWeb) {
+      const sport = memoryDb.sport.find((s: any) => s.date === date);
+      if (sport) {
+        return {
+          ...sport,
+          workouts: sport.workouts || [],
+          custom_metrics: sport.custom_metrics || {},
+        };
+      }
+      return null;
+    }
     const result = await db.getFirstAsync<any>(
       'SELECT * FROM sport WHERE date = ?',
       [date]
@@ -208,6 +302,29 @@ export const sportService = {
   },
 
   async createOrUpdate(date: string, data: any) {
+    if (isWeb) {
+      const existing = memoryDb.sport.find((s: any) => s.date === date);
+      if (existing) {
+        if (data.steps !== undefined) existing.steps = data.steps;
+        if (data.calories_burned !== undefined) existing.calories_burned = data.calories_burned;
+        if (data.workouts !== undefined) existing.workouts = data.workouts;
+        if (data.custom_metrics !== undefined) existing.custom_metrics = data.custom_metrics;
+        existing.updated_at = new Date().toISOString();
+      } else {
+        memoryDb.sport.push({
+          id: generateId(),
+          date,
+          steps: data.steps || 0,
+          calories_burned: data.calories_burned || 0,
+          workouts: data.workouts || [],
+          custom_metrics: data.custom_metrics || {},
+          created_at: new Date().toISOString(),
+        });
+      }
+      await saveWebStorage('sport');
+      return this.getByDate(date);
+    }
+
     const existing = await this.getByDate(date);
     
     if (existing) {
@@ -273,16 +390,46 @@ export const sportService = {
       await this.createOrUpdate(date, { workouts });
     }
   },
+
+  async getRange(startDate: string, endDate: string) {
+    if (isWeb) {
+      return memoryDb.sport
+        .filter((s: any) => s.date >= startDate && s.date <= endDate)
+        .sort((a: any, b: any) => a.date.localeCompare(b.date));
+    }
+    return await db.getAllAsync<any>(
+      'SELECT * FROM sport WHERE date >= ? AND date <= ? ORDER BY date',
+      [startDate, endDate]
+    );
+  },
 };
 
 // ==================== FINANCE ====================
 export const financeService = {
   async getCategories() {
+    if (isWeb) {
+      return [...memoryDb.financeCategories].sort((a: any, b: any) => a.name.localeCompare(b.name));
+    }
     return await db.getAllAsync<any>('SELECT * FROM finance_categories ORDER BY name');
   },
 
   async createCategory(data: any) {
     const id = generateId();
+    const category = {
+      id,
+      name: data.name,
+      budget: data.budget || 0,
+      rhythm: data.rhythm || 'monthly',
+      color: data.color || '#4CAF50',
+      created_at: new Date().toISOString(),
+    };
+
+    if (isWeb) {
+      memoryDb.financeCategories.push(category);
+      await saveWebStorage('financeCategories');
+      return category;
+    }
+
     await db.runAsync(
       `INSERT INTO finance_categories (id, name, budget, rhythm, color)
        VALUES (?, ?, ?, ?, ?)`,
@@ -292,11 +439,26 @@ export const financeService = {
   },
 
   async deleteCategory(id: string) {
+    if (isWeb) {
+      memoryDb.financeEntries = memoryDb.financeEntries.filter((e: any) => e.category_id !== id);
+      memoryDb.financeCategories = memoryDb.financeCategories.filter((c: any) => c.id !== id);
+      await saveWebStorage('financeEntries');
+      await saveWebStorage('financeCategories');
+      return;
+    }
     await db.runAsync('DELETE FROM finance_entries WHERE category_id = ?', [id]);
     await db.runAsync('DELETE FROM finance_categories WHERE id = ?', [id]);
   },
 
   async getEntries(categoryId?: string, startDate?: string, endDate?: string) {
+    if (isWeb) {
+      let entries = [...memoryDb.financeEntries];
+      if (categoryId) entries = entries.filter((e: any) => e.category_id === categoryId);
+      if (startDate) entries = entries.filter((e: any) => e.date >= startDate);
+      if (endDate) entries = entries.filter((e: any) => e.date <= endDate);
+      return entries.sort((a: any, b: any) => b.date.localeCompare(a.date));
+    }
+
     let query = 'SELECT * FROM finance_entries WHERE 1=1';
     const params: any[] = [];
 
@@ -319,6 +481,21 @@ export const financeService = {
 
   async createEntry(data: any) {
     const id = generateId();
+    const entry = {
+      id,
+      category_id: data.category_id,
+      date: data.date,
+      description: data.description || '',
+      amount: data.amount,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isWeb) {
+      memoryDb.financeEntries.push(entry);
+      await saveWebStorage('financeEntries');
+      return entry;
+    }
+
     await db.runAsync(
       `INSERT INTO finance_entries (id, category_id, date, description, amount)
        VALUES (?, ?, ?, ?, ?)`,
@@ -328,10 +505,28 @@ export const financeService = {
   },
 
   async deleteEntry(id: string) {
+    if (isWeb) {
+      memoryDb.financeEntries = memoryDb.financeEntries.filter((e: any) => e.id !== id);
+      await saveWebStorage('financeEntries');
+      return;
+    }
     await db.runAsync('DELETE FROM finance_entries WHERE id = ?', [id]);
   },
 
   async getSummary(categoryId: string) {
+    if (isWeb) {
+      const category = memoryDb.financeCategories.find((c: any) => c.id === categoryId);
+      const entries = memoryDb.financeEntries.filter((e: any) => e.category_id === categoryId);
+      const totalSpent = entries.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+      
+      return {
+        category,
+        entries,
+        total_spent: totalSpent,
+        budget_remaining: (category?.budget || 0) - totalSpent,
+      };
+    }
+
     const category = await db.getFirstAsync<any>(
       'SELECT * FROM finance_categories WHERE id = ?',
       [categoryId]
@@ -363,6 +558,15 @@ export const financeService = {
 // ==================== APP BLOCKER ====================
 export const appBlockerService = {
   async getRules() {
+    if (isWeb) {
+      return memoryDb.blockerRules.map((r: any) => ({
+        ...r,
+        apps: r.apps || [],
+        days: r.days || [],
+        is_active: Boolean(r.is_active),
+        allow_temporary_unlock: Boolean(r.allow_temporary_unlock),
+      }));
+    }
     const rules = await db.getAllAsync<any>('SELECT * FROM app_blocker_rules');
     return rules.map((r: any) => ({
       ...r,
@@ -375,6 +579,28 @@ export const appBlockerService = {
 
   async createRule(data: any) {
     const id = generateId();
+    const rule = {
+      id,
+      name: data.name,
+      apps: data.apps || [],
+      start_time: data.start_time,
+      end_time: data.end_time,
+      days: data.days || [],
+      is_active: data.is_active !== false,
+      unlock_type: data.unlock_type || 'password',
+      unlock_password: data.unlock_password || '',
+      sport_minutes_required: data.sport_minutes_required || 0,
+      allow_temporary_unlock: data.allow_temporary_unlock !== false,
+      temporary_unlock_minutes: data.temporary_unlock_minutes || 5,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isWeb) {
+      memoryDb.blockerRules.push(rule);
+      await saveWebStorage('blockerRules');
+      return rule;
+    }
+
     await db.runAsync(
       `INSERT INTO app_blocker_rules (id, name, apps, start_time, end_time, days, is_active, unlock_type, unlock_password, sport_minutes_required, allow_temporary_unlock, temporary_unlock_minutes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -395,6 +621,15 @@ export const appBlockerService = {
   },
 
   async updateRule(id: string, data: any) {
+    if (isWeb) {
+      const rule = memoryDb.blockerRules.find((r: any) => r.id === id);
+      if (rule) {
+        Object.assign(rule, data);
+        await saveWebStorage('blockerRules');
+      }
+      return;
+    }
+
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -410,6 +645,11 @@ export const appBlockerService = {
   },
 
   async deleteRule(id: string) {
+    if (isWeb) {
+      memoryDb.blockerRules = memoryDb.blockerRules.filter((r: any) => r.id !== id);
+      await saveWebStorage('blockerRules');
+      return;
+    }
     await db.runAsync('DELETE FROM app_blocker_rules WHERE id = ?', [id]);
   },
 
@@ -435,6 +675,13 @@ export const appBlockerService = {
 // ==================== NOTIFICATIONS ====================
 export const notificationsService = {
   async getAll() {
+    if (isWeb) {
+      return memoryDb.notifications.map((n: any) => ({
+        ...n,
+        days: n.days || [],
+        is_active: Boolean(n.is_active),
+      }));
+    }
     const results = await db.getAllAsync<any>('SELECT * FROM notifications');
     return results.map((n: any) => ({
       ...n,
@@ -445,6 +692,22 @@ export const notificationsService = {
 
   async create(data: any) {
     const id = generateId();
+    const notification = {
+      id,
+      title: data.title,
+      message: data.message || '',
+      time: data.time,
+      days: data.days || [],
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isWeb) {
+      memoryDb.notifications.push(notification);
+      await saveWebStorage('notifications');
+      return notification;
+    }
+
     await db.runAsync(
       `INSERT INTO notifications (id, title, message, time, days, is_active)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -454,10 +717,23 @@ export const notificationsService = {
   },
 
   async delete(id: string) {
+    if (isWeb) {
+      memoryDb.notifications = memoryDb.notifications.filter((n: any) => n.id !== id);
+      await saveWebStorage('notifications');
+      return;
+    }
     await db.runAsync('DELETE FROM notifications WHERE id = ?', [id]);
   },
 
   async toggle(id: string) {
+    if (isWeb) {
+      const notif = memoryDb.notifications.find((n: any) => n.id === id);
+      if (notif) {
+        notif.is_active = !notif.is_active;
+        await saveWebStorage('notifications');
+      }
+      return;
+    }
     const notif = await db.getFirstAsync<any>('SELECT is_active FROM notifications WHERE id = ?', [id]);
     if (notif) {
       await db.runAsync('UPDATE notifications SET is_active = ? WHERE id = ?', [notif.is_active ? 0 : 1, id]);
@@ -515,14 +791,8 @@ export const analyticsService = {
     }
 
     const nutrition = await nutritionService.getRange(startDate, today);
-    const vitalsRows = await db.getAllAsync<any>(
-      'SELECT * FROM vitals WHERE date >= ? AND date <= ? ORDER BY date',
-      [startDate, today]
-    );
-    const sportRows = await db.getAllAsync<any>(
-      'SELECT * FROM sport WHERE date >= ? AND date <= ? ORDER BY date',
-      [startDate, today]
-    );
+    const vitalsRows = await vitalsService.getRange(startDate, today);
+    const sportRows = await sportService.getRange(startDate, today);
 
     const dayCount = Math.max(1, new Set(nutrition.map((e: any) => e.date)).size);
     const totalCalories = nutrition.reduce((s: number, e: any) => s + (e.calories || 0), 0);
@@ -554,7 +824,7 @@ export const analyticsService = {
     let totalWorkoutMinutes = 0;
     let totalWorkoutCalories = 0;
     for (const row of sportRows) {
-      const workouts = JSON.parse(row.workouts || '[]');
+      const workouts = isWeb ? (row.workouts || []) : JSON.parse(row.workouts || '[]');
       totalWorkouts += workouts.length;
       totalWorkoutMinutes += workouts.reduce((s: number, w: any) => s + (w.duration || 0), 0);
       totalWorkoutCalories += workouts.reduce((s: number, w: any) => s + (w.calories_burned || 0), 0);
@@ -618,14 +888,8 @@ export const exportService = {
     })();
 
     const nutrition = await nutritionService.getRange(start, end);
-    const vitals = await db.getAllAsync<any>(
-      'SELECT * FROM vitals WHERE date >= ? AND date <= ? ORDER BY date',
-      [start, end]
-    );
-    const sport = await db.getAllAsync<any>(
-      'SELECT * FROM sport WHERE date >= ? AND date <= ? ORDER BY date',
-      [start, end]
-    );
+    const vitals = await vitalsService.getRange(start, end);
+    const sport = await sportService.getRange(start, end);
     const finance = await financeService.getEntries(undefined, start, end);
 
     // Build CSV strings
@@ -634,7 +898,7 @@ export const exportService = {
         `${e.date};${e.time};${e.description};${e.calories};${e.protein};${e.carbs};${e.fat};${e.fiber};${e.sugar};${e.salt};${e.water}`
       ).join('\n');
 
-    const vitalsCsv = 'Datum;Gewicht;Körperfett;Schlafbeginn;Schlafende;Schlafdauer;Schlafqualität;Morgenenergie;Ruhepuls\n' +
+    const vitalsCsv = 'Datum;Gewicht;Korperfett;Schlafbeginn;Schlafende;Schlafdauer;Schlafqualitat;Morgenenergie;Ruhepuls\n' +
       vitals.map((e: any) =>
         `${e.date};${e.weight || ''};${e.body_fat || ''};${e.sleep_start || ''};${e.sleep_end || ''};${e.sleep_duration || ''};${e.sleep_quality || ''};${e.morning_energy || ''};${e.resting_heart_rate || ''}`
       ).join('\n');
