@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet, Text } from 'react-native';
@@ -19,26 +19,56 @@ const COLORS = {
   textSecondary: '#B0B0B0',
 };
 
+// Context for preloaded data
+interface PreloadedData {
+  tabSettings: {
+    show_dashboard_tab: boolean;
+    show_nutrition_tab: boolean;
+    show_sport_tab: boolean;
+    show_vitals_tab: boolean;
+    show_finance_tab: boolean;
+    show_blocker_tab: boolean;
+  };
+  profile: any;
+}
+
+const PreloadContext = createContext<PreloadedData | null>(null);
+
 function DataPreloader({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [statusText, setStatusText] = useState('Daten werden geladen...');
+  const [statusText, setStatusText] = useState('Datenbank initialisieren...');
+  const [preloadedData, setPreloadedData] = useState<PreloadedData | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => Math.min(prev + 10, 70));
+        setLoadingProgress(prev => Math.min(prev + 8, 60));
       }, 100);
 
       try {
-        // Initialize database
+        // Step 1: Initialize database
         await initDatabase();
+        setLoadingProgress(65);
+        setStatusText('Einstellungen laden...');
+        
+        // Step 2: Load profile and tab settings
+        const profile = await profileService.get();
+        const tabSettings = {
+          show_dashboard_tab: true,
+          show_nutrition_tab: true,
+          show_sport_tab: true,
+          show_vitals_tab: true,
+          show_finance_tab: true,
+          show_blocker_tab: true,
+          ...profile?.tracking_settings,
+        };
         setLoadingProgress(75);
         
-        // Check and sync FitBit if connected
+        // Step 3: Check and sync FitBit if connected
         const fitbitConnected = await fitbitService.isConnected();
         if (fitbitConnected) {
-          setStatusText('FitBit wird synchronisiert...');
+          setStatusText('FitBit synchronisieren...');
           setLoadingProgress(80);
           
           try {
@@ -51,7 +81,7 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
               vitalsUpdates.resting_heart_rate = data.heartRate.restingHeartRate;
             }
             if (data.sleep) {
-              vitalsUpdates.sleep_duration = data.sleep.duration / 60; // to hours
+              vitalsUpdates.sleep_duration = data.sleep.duration / 60;
               vitalsUpdates.sleep_quality = Math.round(data.sleep.efficiency / 20);
               if (data.sleep.startTime) {
                 vitalsUpdates.sleep_start = data.sleep.startTime.split('T')[1]?.slice(0, 5);
@@ -69,17 +99,34 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
               await sportService.createOrUpdate(today, { steps: data.steps });
             }
             
-            setLoadingProgress(95);
             console.log('FitBit sync completed:', data.steps, 'steps');
           } catch (fitbitError) {
             console.log('FitBit sync skipped:', fitbitError);
           }
         }
         
+        setLoadingProgress(95);
+        setStatusText('App wird gestartet...');
+        
+        // Store preloaded data
+        setPreloadedData({ tabSettings, profile });
+        
         setLoadingProgress(100);
         setStatusText('Fertig!');
       } catch (error) {
-        console.error('Database init error:', error);
+        console.error('Initialization error:', error);
+        // Set defaults on error
+        setPreloadedData({
+          tabSettings: {
+            show_dashboard_tab: true,
+            show_nutrition_tab: true,
+            show_sport_tab: true,
+            show_vitals_tab: true,
+            show_finance_tab: true,
+            show_blocker_tab: true,
+          },
+          profile: null,
+        });
         setLoadingProgress(100);
         setStatusText('Fertig!');
       } finally {
@@ -90,7 +137,7 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
     loadData();
   }, []);
 
-  if (showSplash) {
+  if (showSplash || !preloadedData) {
     return (
       <View style={styles.splashContainer}>
         <View style={styles.splashContent}>
@@ -105,36 +152,26 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <PreloadContext.Provider value={preloadedData}>
+      {children}
+    </PreloadContext.Provider>
+  );
 }
 
 function MainTabs() {
   const { t } = useLanguage();
-  const [tabSettings, setTabSettings] = useState({
+  const preloaded = useContext(PreloadContext);
+  
+  // Use preloaded tab settings directly - no additional loading needed
+  const tabSettings = preloaded?.tabSettings || {
     show_dashboard_tab: true,
     show_nutrition_tab: true,
     show_sport_tab: true,
     show_vitals_tab: true,
     show_finance_tab: true,
     show_blocker_tab: true,
-  });
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const profile = await profileService.get();
-        if (profile?.tracking_settings) {
-          setTabSettings(prev => ({
-            ...prev,
-            ...profile.tracking_settings,
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading tab settings:', error);
-      }
-    };
-    loadSettings();
-  }, []);
+  };
 
   return (
     <Tabs
