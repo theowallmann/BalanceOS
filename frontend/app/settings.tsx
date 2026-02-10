@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { profileService } from '../src/database/services';
+import { fitbitService } from '../src/services/fitbitService';
 
 interface TrackingSettings {
   // Nutrition
