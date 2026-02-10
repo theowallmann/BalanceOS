@@ -47,7 +47,7 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
       <View style={styles.splashContainer}>
         <View style={styles.splashContent}>
           <Ionicons name="fitness" size={64} color={COLORS.primary} />
-          <Text style={styles.splashTitle}>HealthMate</Text>
+          <Text style={styles.splashTitle}>BalanceOS</Text>
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBarFill, { width: `${loadingProgress}%` }]} />
           </View>
