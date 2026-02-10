@@ -9,6 +9,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { appBlockerService, notificationsService } from '../src/database/services';
+import { useLocalSearchParams, router } from "expo-router";
+import { View, Text, Button } from "react-native";
 
 const DAYS = [
   { key: 'monday', label: 'Mo' }, { key: 'tuesday', label: 'Di' },
@@ -32,6 +34,17 @@ export default function BlockerScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [rules, setRules] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+
+  const { pkg } = useLocalSearchParams<{ pkg?: string }>();
+  return (
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Text style={{ fontSize: 18, fontWeight: "600" }}>App blockiert</Text>
+      <Text style={{ marginTop: 8 }}>{pkg ?? ""}</Text>
+
+      {/* TODO: Unlock-Flow */}
+      <Button title="Zurück" onPress={() => router.replace("/")} />
+    </View>
+  );
 
   const [blockerForm, setBlockerForm] = useState({
     name: '', apps: '', days: [] as string[],
