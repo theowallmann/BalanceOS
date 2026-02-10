@@ -41,6 +41,10 @@ export const sportApi = {
   addWorkout: (date: string, workout: any) => api.post(`/sport/${date}/workout`, workout),
   deleteWorkout: (date: string, workoutId: string) => api.delete(`/sport/${date}/workout/${workoutId}`),
   updateCustomMetrics: (date: string, metrics: any) => api.put(`/sport/${date}/custom-metrics`, metrics),
+  estimateCalories: (data: { type: string; duration: number; notes?: string }) => 
+    api.post('/sport/estimate-calories', data),
+  generateTrainingGoals: (goal: string) => 
+    api.post('/sport/ai-training-goals', { goal }),
 };
 
 // Analytics API
