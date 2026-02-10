@@ -38,8 +38,10 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App namens **Balan
 ### OpenAI Integration (COMPLETE)
 - [x] API Key in `/src/constants/apiKeys.ts` hinterlegt
 - [x] AI Service erstellt (`/src/services/aiService.ts`)
-- [x] Nährwertschätzung via ChatGPT funktional
-- [x] Loading-State in Nutrition Screen
+- [x] **Nährwertschätzung** via ChatGPT funktional (Nutrition Screen)
+- [x] **Workout-Vorschläge** via ChatGPT funktional (Sport Screen)
+- [x] **Kalorienverbrauch-Schätzung** für Workouts
+- [x] Loading-States für alle KI-Funktionen
 
 ## Features
 
