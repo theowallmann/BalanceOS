@@ -58,6 +58,7 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
 
 // Main Tab Navigation with dynamic visibility
 function MainTabs() {
+  const { t } = useLanguage();
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: () => profileApi.get().then(res => res.data),
@@ -97,7 +98,7 @@ function MainTabs() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('dashboard'),
           href: tabSettings.show_dashboard_tab ? '/' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="analytics" size={size} color={color} />
@@ -107,7 +108,7 @@ function MainTabs() {
       <Tabs.Screen
         name="nutrition"
         options={{
-          title: 'Nutrition',
+          title: t('nutrition'),
           href: tabSettings.show_nutrition_tab ? '/nutrition' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="restaurant" size={size} color={color} />
@@ -117,7 +118,7 @@ function MainTabs() {
       <Tabs.Screen
         name="sport"
         options={{
-          title: 'Sport',
+          title: t('sport'),
           href: tabSettings.show_sport_tab ? '/sport' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="fitness" size={size} color={color} />
@@ -127,7 +128,7 @@ function MainTabs() {
       <Tabs.Screen
         name="vitals"
         options={{
-          title: 'Vitals',
+          title: t('vitals'),
           href: tabSettings.show_vitals_tab ? '/vitals' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="heart" size={size} color={color} />
@@ -137,7 +138,7 @@ function MainTabs() {
       <Tabs.Screen
         name="finance"
         options={{
-          title: 'Finance',
+          title: t('finance'),
           href: tabSettings.show_finance_tab ? '/finance' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="wallet" size={size} color={color} />
@@ -147,7 +148,7 @@ function MainTabs() {
       <Tabs.Screen
         name="blocker"
         options={{
-          title: 'Blocker',
+          title: t('blocker'),
           href: tabSettings.show_blocker_tab ? '/blocker' : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="lock-closed" size={size} color={color} />
@@ -157,7 +158,7 @@ function MainTabs() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('profile'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
