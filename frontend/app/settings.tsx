@@ -88,12 +88,14 @@ const DEFAULT_SETTINGS: TrackingSettings = {
 export default function SettingsScreen() {
   const { t, language, switchLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
   const router = useRouter();
   
   const [settings, setSettings] = useState<TrackingSettings>(DEFAULT_SETTINGS);
   const [hasChanges, setHasChanges] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
   // Presets defined inside component to use translations
   const PRESETS = [
