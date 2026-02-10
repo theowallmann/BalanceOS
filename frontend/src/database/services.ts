@@ -471,27 +471,34 @@ export const analyticsService = {
     const nutrition = await nutritionService.getByDate(date);
     const vitals = await vitalsService.getByDate(date);
     const sport = await sportService.getByDate(date);
-    const profile = await profileService.get();
 
     const totalCalories = nutrition.reduce((sum: number, e: any) => sum + (e.calories || 0), 0);
     const totalProtein = nutrition.reduce((sum: number, e: any) => sum + (e.protein || 0), 0);
     const totalCarbs = nutrition.reduce((sum: number, e: any) => sum + (e.carbs || 0), 0);
     const totalFat = nutrition.reduce((sum: number, e: any) => sum + (e.fat || 0), 0);
     const totalWater = nutrition.reduce((sum: number, e: any) => sum + (e.water || 0), 0);
+    const totalFiber = nutrition.reduce((sum: number, e: any) => sum + (e.fiber || 0), 0);
+    const totalSugar = nutrition.reduce((sum: number, e: any) => sum + (e.sugar || 0), 0);
+
+    const sportCalories = sport?.calories_burned || 0;
+    const workoutCalories = (sport?.workouts || []).reduce((s: number, w: any) => s + (w.calories_burned || 0), 0);
 
     return {
       date,
       nutrition: {
-        total_calories: totalCalories,
-        total_protein: totalProtein,
-        total_carbs: totalCarbs,
-        total_fat: totalFat,
-        total_water: totalWater,
-        entry_count: nutrition.length,
+        consumed: {
+          total_calories: totalCalories,
+          total_protein: totalProtein,
+          total_carbs: totalCarbs,
+          total_fat: totalFat,
+          total_water: totalWater,
+          total_fiber: totalFiber,
+          total_sugar: totalSugar,
+        },
       },
-      vitals,
-      sport,
-      goals: profile?.nutrient_goals || {},
+      sport: { data: sport || { steps: 0, calories_burned: 0, workouts: [] } },
+      vitals: vitals || {},
+      summary: { calories_burned: sportCalories || workoutCalories },
     };
   },
 
@@ -508,23 +515,94 @@ export const analyticsService = {
     }
 
     const nutrition = await nutritionService.getRange(startDate, today);
-    const profile = await profileService.get();
+    const vitalsRows = await db.getAllAsync<any>(
+      'SELECT * FROM vitals WHERE date >= ? AND date <= ? ORDER BY date',
+      [startDate, today]
+    );
+    const sportRows = await db.getAllAsync<any>(
+      'SELECT * FROM sport WHERE date >= ? AND date <= ? ORDER BY date',
+      [startDate, today]
+    );
 
-    const totalCalories = nutrition.reduce((sum: number, e: any) => sum + (e.calories || 0), 0);
-    const totalProtein = nutrition.reduce((sum: number, e: any) => sum + (e.protein || 0), 0);
-    const dayCount = period === 'today' ? 1 : Math.max(1, new Set(nutrition.map((e: any) => e.date)).size);
+    const dayCount = Math.max(1, new Set(nutrition.map((e: any) => e.date)).size);
+    const totalCalories = nutrition.reduce((s: number, e: any) => s + (e.calories || 0), 0);
+    const totalProtein = nutrition.reduce((s: number, e: any) => s + (e.protein || 0), 0);
+    const totalCarbs = nutrition.reduce((s: number, e: any) => s + (e.carbs || 0), 0);
+    const totalFat = nutrition.reduce((s: number, e: any) => s + (e.fat || 0), 0);
+    const totalWater = nutrition.reduce((s: number, e: any) => s + (e.water || 0), 0);
+
+    // Weight progression
+    const weightsWithData = vitalsRows.filter((v: any) => v.weight);
+    const weightStart = weightsWithData.length > 0 ? weightsWithData[0].weight : null;
+    const weightEnd = weightsWithData.length > 0 ? weightsWithData[weightsWithData.length - 1].weight : null;
+    const weightChange = weightStart && weightEnd ? Math.round((weightEnd - weightStart) * 10) / 10 : null;
+
+    const bodyFatWithData = vitalsRows.filter((v: any) => v.body_fat);
+    const bodyFatStart = bodyFatWithData.length > 0 ? bodyFatWithData[0].body_fat : null;
+    const bodyFatEnd = bodyFatWithData.length > 0 ? bodyFatWithData[bodyFatWithData.length - 1].body_fat : null;
+    const bodyFatChange = bodyFatStart && bodyFatEnd ? Math.round((bodyFatEnd - bodyFatStart) * 10) / 10 : null;
+
+    const sleepRows = vitalsRows.filter((v: any) => v.sleep_duration);
+    const avgSleep = sleepRows.length > 0
+      ? Math.round((sleepRows.reduce((s: number, v: any) => s + v.sleep_duration, 0) / sleepRows.length) * 10) / 10
+      : null;
+
+    // Sport
+    const totalSteps = sportRows.reduce((s: number, r: any) => s + (r.steps || 0), 0);
+    const sportDays = Math.max(1, sportRows.length);
+    let totalWorkouts = 0;
+    let totalWorkoutMinutes = 0;
+    let totalWorkoutCalories = 0;
+    for (const row of sportRows) {
+      const workouts = JSON.parse(row.workouts || '[]');
+      totalWorkouts += workouts.length;
+      totalWorkoutMinutes += workouts.reduce((s: number, w: any) => s + (w.duration || 0), 0);
+      totalWorkoutCalories += workouts.reduce((s: number, w: any) => s + (w.calories_burned || 0), 0);
+    }
 
     return {
       period,
+      start_date: startDate,
+      end_date: today,
       nutrition: {
-        total_calories: totalCalories,
-        avg_calories: Math.round(totalCalories / dayCount),
-        total_protein: totalProtein,
-        avg_protein: Math.round(totalProtein / dayCount),
-        entry_count: nutrition.length,
-        day_count: dayCount,
+        averages: {
+          calories: totalCalories / dayCount,
+          protein: totalProtein / dayCount,
+          carbs: totalCarbs / dayCount,
+          fat: totalFat / dayCount,
+          water: totalWater / dayCount,
+        },
       },
-      goals: profile?.nutrient_goals || {},
+      vitals: {
+        weight: { start: weightStart, end: weightEnd, change: weightChange },
+        body_fat: { start: bodyFatStart, end: bodyFatEnd, change: bodyFatChange },
+        sleep: { average_hours: avgSleep },
+      },
+      sport: {
+        averages: {
+          steps_per_day: totalSteps / sportDays,
+          workout_calories_per_day: totalWorkoutCalories / sportDays,
+        },
+        totals: { workouts: totalWorkouts, workout_minutes: totalWorkoutMinutes },
+      },
+      days_with_data: { nutrition: dayCount },
+    };
+  },
+};
+
+// ==================== NUTRITION SUMMARY ====================
+export const nutritionSummaryService = {
+  async getByDate(date: string) {
+    const entries = await nutritionService.getByDate(date);
+    return {
+      total_calories: entries.reduce((s: number, e: any) => s + (e.calories || 0), 0),
+      total_protein: entries.reduce((s: number, e: any) => s + (e.protein || 0), 0),
+      total_carbs: entries.reduce((s: number, e: any) => s + (e.carbs || 0), 0),
+      total_fat: entries.reduce((s: number, e: any) => s + (e.fat || 0), 0),
+      total_water: entries.reduce((s: number, e: any) => s + (e.water || 0), 0),
+      total_fiber: entries.reduce((s: number, e: any) => s + (e.fiber || 0), 0),
+      total_sugar: entries.reduce((s: number, e: any) => s + (e.sugar || 0), 0),
+      total_salt: entries.reduce((s: number, e: any) => s + (e.salt || 0), 0),
     };
   },
 };
