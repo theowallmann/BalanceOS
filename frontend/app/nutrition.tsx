@@ -11,6 +11,7 @@ import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { nutritionService, nutritionSummaryService, profileService } from '../src/database/services';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday, getCurrentTime } from '../src/utils/date';
+import { estimateNutrition } from '../src/services/aiService';
 
 export default function NutritionScreen() {
   const { t, language } = useLanguage();
