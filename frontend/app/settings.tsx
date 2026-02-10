@@ -666,4 +666,48 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  fitbitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  fitbitInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  fitbitTextContainer: {
+    flex: 1,
+  },
+  fitbitTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  fitbitSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  fitbitConnectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  fitbitConnectText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  fitbitDisconnectButton: {
+    padding: 10,
+    backgroundColor: COLORS.error + '20',
+    borderRadius: 10,
+  },
 });
