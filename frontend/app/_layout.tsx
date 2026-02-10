@@ -1,25 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { Platform, View, StyleSheet, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useDataStore } from '../src/store';
-import { profileApi } from '../src/services/api';
 import { useLanguage } from '../src/hooks/useLanguage';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes - cache is kept for 30 minutes
-      refetchOnWindowFocus: false, // Don't refetch when window regains focus
-      refetchOnMount: false, // Don't refetch when component mounts if data is fresh
-      retry: 1, // Only retry once on failure
-    },
-  },
-});
+import { initDatabase } from '../src/database/schema';
+import { profileService } from '../src/database/services';
 
 const COLORS = {
   primary: '#4CAF50',
@@ -29,39 +16,32 @@ const COLORS = {
   surfaceLight: '#2D2D2D',
   text: '#FFFFFF',
   textSecondary: '#B0B0B0',
-  accent: '#FF9800',
-  error: '#F44336',
-  success: '#4CAF50',
 };
 
-// Preloader component with better splash screen
 function DataPreloader({ children }: { children: React.ReactNode }) {
-  const { preloadAllData, isPreloaded, isLoading } = useDataStore();
-  const { t } = useLanguage();
   const [showSplash, setShowSplash] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  
+
   useEffect(() => {
     const loadData = async () => {
-      // Simulate progress while loading
       const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-      
+        setLoadingProgress(prev => Math.min(prev + 15, 90));
+      }, 100);
+
       try {
-        await preloadAllData();
+        await initDatabase();
         setLoadingProgress(100);
       } catch (error) {
-        console.error('Preload error:', error);
+        console.error('Database init error:', error);
+        setLoadingProgress(100);
       } finally {
         clearInterval(progressInterval);
-        // Short delay for smooth transition
-        setTimeout(() => setShowSplash(false), 300);
+        setTimeout(() => setShowSplash(false), 200);
       }
     };
     loadData();
   }, []);
-  
+
   if (showSplash) {
     return (
       <View style={styles.splashContainer}>
@@ -78,27 +58,37 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
       </View>
     );
   }
-  
+
   return <>{children}</>;
 }
 
-// Main Tab Navigation with dynamic visibility
 function MainTabs() {
   const { t } = useLanguage();
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => profileApi.get().then(res => res.data),
+  const [tabSettings, setTabSettings] = useState({
+    show_dashboard_tab: true,
+    show_nutrition_tab: true,
+    show_sport_tab: true,
+    show_vitals_tab: true,
+    show_finance_tab: true,
+    show_blocker_tab: true,
   });
 
-  // Default: all tabs visible
-  const tabSettings = {
-    show_dashboard_tab: profile?.tracking_settings?.show_dashboard_tab ?? true,
-    show_nutrition_tab: profile?.tracking_settings?.show_nutrition_tab ?? true,
-    show_sport_tab: profile?.tracking_settings?.show_sport_tab ?? true,
-    show_vitals_tab: profile?.tracking_settings?.show_vitals_tab ?? true,
-    show_finance_tab: profile?.tracking_settings?.show_finance_tab ?? true,
-    show_blocker_tab: profile?.tracking_settings?.show_blocker_tab ?? true,
-  };
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const profile = await profileService.get();
+        if (profile?.tracking_settings) {
+          setTabSettings(prev => ({
+            ...prev,
+            ...profile.tracking_settings,
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading tab settings:', error);
+      }
+    };
+    loadSettings();
+  }, []);
 
   return (
     <Tabs
@@ -193,7 +183,7 @@ function MainTabs() {
       <Tabs.Screen
         name="settings"
         options={{
-          href: null, // Always hidden from tab bar
+          href: null,
         }}
       />
     </Tabs>
@@ -203,15 +193,13 @@ function MainTabs() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <DataPreloader>
-            <View style={styles.container}>
-              <MainTabs />
-            </View>
-          </DataPreloader>
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <DataPreloader>
+          <View style={styles.container}>
+            <MainTabs />
+          </View>
+        </DataPreloader>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
