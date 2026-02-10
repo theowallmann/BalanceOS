@@ -1,7 +1,7 @@
-# HealthMate App - Product Requirements Document
+# BalanceOS - Product Requirements Document
 
 ## Original Problem Statement
-Der Benutzer möchte eine vollständig lokale Health-Tracking App. Die App soll alle Daten lokal in einer SQLite-Datenbank speichern statt über ein externes Backend. Nach erfolgreicher SQLite-Migration sollen die KI-Features über den persönlichen ChatGPT API Key des Benutzers laufen.
+Der Benutzer möchte eine vollständig lokale Health-Tracking App namens **BalanceOS**. Die App soll alle Daten lokal in einer SQLite-Datenbank speichern (kein externes Backend). Die KI-Features laufen über den persönlichen ChatGPT API Key des Benutzers.
 
 ## User Personas
 - Gesundheitsbewusste Benutzer, die ihre Ernährung, Sport und Vitaldaten tracken möchten
@@ -11,7 +11,7 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App. Die App soll 
 ## Core Requirements
 1. **Lokale Datenpersistenz**: Alle Daten werden lokal in SQLite gespeichert
 2. **Kein externes Backend**: App funktioniert vollständig offline
-3. **KI-Integration**: ChatGPT API für Ernährungsschätzungen und Trainingsvorschläge (via User's API Key)
+3. **KI-Integration**: ChatGPT API (gpt-4o-mini) für Nährwertschätzungen und Trainingsvorschläge
 
 ## Tech Stack
 - **Framework**: React Native mit Expo
@@ -20,14 +20,34 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App. Die App soll 
 - **Datenbank**: SQLite via `expo-sqlite`
 - **State Management**: Zustand
 - **UI**: Custom Components mit Dark Theme
+- **KI**: OpenAI API (gpt-4o-mini)
 
-## Features Implemented
+## What's Been Implemented (December 2025)
+
+### SQLite Migration (COMPLETE)
+- [x] Datenbank-Schema: `balanceos.db`
+- [x] Service-Layer für alle DB-Operationen
+- [x] Alle Screens auf lokale Services migriert
+- [x] TypeScript Compilation erfolgreich
+
+### App Rebranding (COMPLETE)
+- [x] App umbenannt von "HealthMate" zu "BalanceOS"
+- [x] app.json aktualisiert (name, slug, scheme)
+- [x] Splash Screen aktualisiert
+
+### OpenAI Integration (COMPLETE)
+- [x] API Key in `/src/constants/apiKeys.ts` hinterlegt
+- [x] AI Service erstellt (`/src/services/aiService.ts`)
+- [x] Nährwertschätzung via ChatGPT funktional
+- [x] Loading-State in Nutrition Screen
+
+## Features
 
 ### Nutrition Tracking
 - Tägliche Mahlzeiten erfassen mit Nährwertangaben
-- Kalorien, Protein, Kohlenhydrate, Fett, Ballaststoffe, Zucker, Salz, Wasser
-- KI-Schätzung für Nährwerte (benötigt ChatGPT API Key)
+- **KI-Schätzung**: Automatische Nährwertermittlung via ChatGPT
 - Foto-Upload für Mahlzeiten
+- Tracking: Kalorien, Protein, Kohlenhydrate, Fett, Ballaststoffe, Zucker, Salz, Wasser
 
 ### Vitals Tracking
 - Gewicht und Körperfett
@@ -55,14 +75,12 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App. Die App soll 
 ### Dashboard & Analytics
 - Tagesübersicht
 - 30-Tage-Statistiken
-- Gesamtstatistiken
 - Gewichts- und Körperfett-Entwicklung
 
 ### Profile & Settings
-- Persönliche Daten (Größe, Geburtsdatum, Geschlecht)
+- Persönliche Daten
 - Nährwertziele
-- Vital- und Sportziele
-- Tracking-Einstellungen (was wird getrackt)
+- Tracking-Einstellungen
 - Sprachumschaltung (DE/EN)
 - Datenexport als CSV
 
@@ -76,49 +94,39 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App. Die App soll 
 - `app_blocker_rules`: Sperrregeln
 - `notifications`: Erinnerungen
 
-## What's Been Implemented (December 2025)
+## Files of Reference
+- `/app/frontend/src/database/schema.ts` - SQLite Schema
+- `/app/frontend/src/database/services.ts` - Alle DB Services
+- `/app/frontend/src/constants/apiKeys.ts` - API Keys (OpenAI, FitBit)
+- `/app/frontend/src/services/aiService.ts` - KI Service
+- `/app/frontend/app.json` - App Konfiguration
 
-### SQLite Migration (COMPLETE)
-- [x] Datenbank-Schema erstellt (`/app/frontend/src/database/schema.ts`)
-- [x] Service-Layer für alle DB-Operationen (`/app/frontend/src/database/services.ts`)
-- [x] Alle Screens migriert auf lokale Services:
-  - [x] `index.tsx` (Dashboard)
-  - [x] `nutrition.tsx`
-  - [x] `vitals.tsx`
-  - [x] `sport.tsx`
-  - [x] `finance.tsx`
-  - [x] `blocker.tsx`
-  - [x] `profile.tsx`
-  - [x] `settings.tsx`
-- [x] DB-Initialisierung in `_layout.tsx`
-- [x] TypeScript Compilation erfolgreich
+## 3rd Party Integrations
+- **expo-sqlite**: Lokale Datenbank
+- **OpenAI API**: KI-Nährwertschätzung (gpt-4o-mini)
+- **FitBit**: Client ID hinterlegt (Integration pending)
 
 ## Prioritized Backlog
 
 ### P0 (Immediate)
+- [x] SQLite-Migration abgeschlossen
+- [x] OpenAI API Key integriert
+- [x] App in BalanceOS umbenannt
 - [ ] App auf echtem Gerät testen
-- [ ] Runtime-Fehler debuggen falls vorhanden
 
 ### P1 (Next)
-- [ ] ChatGPT API Key Integration in Settings
-- [ ] KI-Ernährungsschätzung aktivieren
-- [ ] KI-Trainingsvorschläge aktivieren
+- [ ] KI-Workout-Vorschläge im Sport Screen
+- [ ] Tägliche KI-Tipps auf Dashboard
+- [ ] FitBit Integration aktivieren
 
 ### P2 (Future)
-- [ ] Offline-Synchronisation verbessern
+- [ ] Foto-basierte Nährwertschätzung via Vision API
 - [ ] Backup/Restore Funktionalität
-- [ ] Fitbit-Integration (optional)
 - [ ] Apple Health/Google Fit Integration
+- [ ] Widgets für Homescreen
 
-## Files of Reference
-- `/app/frontend/src/database/schema.ts` - SQLite Schema Definition
-- `/app/frontend/src/database/services.ts` - Alle DB Services
-- `/app/frontend/app/_layout.tsx` - Root Layout mit DB Init
-- `/app/frontend/src/constants/colors.ts` - Dark Theme Colors
-- `/app/frontend/src/hooks/useLanguage.ts` - Mehrsprachigkeit
-
-## Notes
-- Die App ist eine React Native/Expo Mobile App (kein Web-App)
-- Backend-Server existiert noch, wird aber nicht mehr verwendet
-- `dataStore.ts` ist noch auf alte API ausgerichtet, wird aber nicht mehr aktiv verwendet
-- Alle Screens verwenden direkt die lokalen Services
+## Important Notes
+- Die App ist eine React Native/Expo Mobile App (NICHT im Web-Browser testbar)
+- expo-sqlite funktioniert NUR auf nativen Geräten (iOS/Android)
+- Testing muss auf echtem Gerät oder Emulator erfolgen
+- Web-Preview zeigt Fehler wegen wa-sqlite.wasm (das ist normal)
