@@ -35,6 +35,9 @@ export default function SportScreen() {
   const [customMetricName, setCustomMetricName] = useState('');
   const [customMetricValue, setCustomMetricValue] = useState('');
   const [customMetricUnit, setCustomMetricUnit] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiSuggestionsModalVisible, setAiSuggestionsModalVisible] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
 
   const dateString = getDateString(selectedDate);
 
