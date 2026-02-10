@@ -105,12 +105,72 @@ export default function SportScreen() {
     ]);
   };
 
-  const handleAiCalorieEstimate = () => {
-    Alert.alert('KI-Feature', 'Bitte konfiguriere deinen ChatGPT API Key, um die KI-Kalorienschatzung zu nutzen.');
+  const handleAiCalorieEstimate = async () => {
+    if (!workoutForm.type || !workoutForm.duration) {
+      Alert.alert('Fehler', 'Bitte wähle einen Workout-Typ und gib die Dauer ein.');
+      return;
+    }
+    
+    setIsAiLoading(true);
+    try {
+      const weight = (await vitalsService.getLatest())?.weight || 70;
+      // Simple calorie estimation based on workout type and duration
+      const caloriesPerMinute: Record<string, number> = {
+        running: 10, cycling: 8, swimming: 9, gym: 6, yoga: 3, hiking: 7, other: 5
+      };
+      const baseCalories = (caloriesPerMinute[workoutForm.type] || 5) * parseInt(workoutForm.duration || '0');
+      const adjustedCalories = Math.round(baseCalories * (weight / 70));
+      
+      setWorkoutForm(prev => ({ ...prev, calories_burned: adjustedCalories.toString() }));
+      Alert.alert('Geschätzt', `Ca. ${adjustedCalories} kcal basierend auf ${workoutForm.duration} Min ${workoutForm.type}`);
+    } catch (error) {
+      Alert.alert('Fehler', 'Schätzung fehlgeschlagen');
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
-  const handleGenerateGoals = () => {
-    Alert.alert('KI-Feature', 'Bitte konfiguriere deinen ChatGPT API Key, um KI-Trainingsziele zu generieren.');
+  const handleGenerateGoals = async () => {
+    setIsAiLoading(true);
+    try {
+      const vitals = await vitalsService.getLatest();
+      const nutrition = await nutritionSummaryService.getByDate(dateString);
+      
+      const suggestions = await getWorkoutSuggestions(
+        {
+          weight: vitals?.weight,
+          caloriesConsumed: nutrition?.total_calories || 0,
+          caloriesBurned: totalWorkoutCalories,
+          stepsToday: sportData?.steps || 0,
+        },
+        {
+          targetCalories: profile?.nutrient_goals?.calories || 2000,
+          targetWeight: profile?.vital_goals?.target_weight,
+        }
+      );
+      
+      setAiSuggestions(suggestions);
+      setAiSuggestionsModalVisible(true);
+    } catch (error) {
+      Alert.alert('Fehler', 'KI-Vorschläge konnten nicht generiert werden.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const applyWorkoutSuggestion = (suggestion: any) => {
+    const typeMap: Record<string, string> = {
+      cardio: 'running', strength: 'gym', flexibility: 'yoga', hiit: 'gym'
+    };
+    setWorkoutForm({
+      type: typeMap[suggestion.type] || 'other',
+      duration: suggestion.duration.toString(),
+      calories_burned: suggestion.calories_burned.toString(),
+      distance: '',
+      notes: suggestion.description,
+    });
+    setAiSuggestionsModalVisible(false);
+    setWorkoutModalVisible(true);
   };
 
   const stepsGoal = profile?.sport_goals?.daily_steps || 10000;
