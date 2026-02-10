@@ -6,7 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLanguage } from '../src/hooks/useLanguage';
 import { initDatabase } from '../src/database/schema';
-import { profileService } from '../src/database/services';
+import { profileService, vitalsService, sportService } from '../src/database/services';
+import { fitbitService } from '../src/services/fitbitService';
 
 const COLORS = {
   primary: '#4CAF50',
@@ -21,19 +22,66 @@ const COLORS = {
 function DataPreloader({ children }: { children: React.ReactNode }) {
   const [showSplash, setShowSplash] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [statusText, setStatusText] = useState('Daten werden geladen...');
 
   useEffect(() => {
     const loadData = async () => {
       const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => Math.min(prev + 15, 90));
+        setLoadingProgress(prev => Math.min(prev + 10, 70));
       }, 100);
 
       try {
+        // Initialize database
         await initDatabase();
+        setLoadingProgress(75);
+        
+        // Check and sync FitBit if connected
+        const fitbitConnected = await fitbitService.isConnected();
+        if (fitbitConnected) {
+          setStatusText('FitBit wird synchronisiert...');
+          setLoadingProgress(80);
+          
+          try {
+            const today = new Date().toISOString().split('T')[0];
+            const data = await fitbitService.syncToday();
+            
+            // Update vitals with FitBit data
+            const vitalsUpdates: any = {};
+            if (data.heartRate?.restingHeartRate) {
+              vitalsUpdates.resting_heart_rate = data.heartRate.restingHeartRate;
+            }
+            if (data.sleep) {
+              vitalsUpdates.sleep_duration = data.sleep.duration / 60; // to hours
+              vitalsUpdates.sleep_quality = Math.round(data.sleep.efficiency / 20);
+              if (data.sleep.startTime) {
+                vitalsUpdates.sleep_start = data.sleep.startTime.split('T')[1]?.slice(0, 5);
+              }
+              if (data.sleep.endTime) {
+                vitalsUpdates.sleep_end = data.sleep.endTime.split('T')[1]?.slice(0, 5);
+              }
+            }
+            if (Object.keys(vitalsUpdates).length > 0) {
+              await vitalsService.createOrUpdate(today, vitalsUpdates);
+            }
+            
+            // Update steps
+            if (data.steps > 0) {
+              await sportService.createOrUpdate(today, { steps: data.steps });
+            }
+            
+            setLoadingProgress(95);
+            console.log('FitBit sync completed:', data.steps, 'steps');
+          } catch (fitbitError) {
+            console.log('FitBit sync skipped:', fitbitError);
+          }
+        }
+        
         setLoadingProgress(100);
+        setStatusText('Fertig!');
       } catch (error) {
         console.error('Database init error:', error);
         setLoadingProgress(100);
+        setStatusText('Fertig!');
       } finally {
         clearInterval(progressInterval);
         setTimeout(() => setShowSplash(false), 200);
@@ -51,9 +99,7 @@ function DataPreloader({ children }: { children: React.ReactNode }) {
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBarFill, { width: `${loadingProgress}%` }]} />
           </View>
-          <Text style={styles.splashText}>
-            {loadingProgress < 100 ? 'Daten werden geladen...' : 'Fertig!'}
-          </Text>
+          <Text style={styles.splashText}>{statusText}</Text>
         </View>
       </View>
     );
