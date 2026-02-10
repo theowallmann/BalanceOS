@@ -8,8 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
-import { vitalsService, profileService } from '../src/database/services';
+import { vitalsService, profileService, sportService } from '../src/database/services';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday } from '../src/utils/date';
+import { fitbitService } from '../src/services/fitbitService';
 
 export default function VitalsScreen() {
   const { t, language } = useLanguage();
@@ -19,6 +20,8 @@ export default function VitalsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [vitals, setVitals] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [fitbitConnected, setFitbitConnected] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [formData, setFormData] = useState({
     weight: '', body_fat: '', sleep_start: '', sleep_end: '',
