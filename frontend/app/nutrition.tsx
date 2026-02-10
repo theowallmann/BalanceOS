@@ -327,34 +327,6 @@ export default function NutritionScreen() {
     }
   };
 
-  const handleAiEstimate = async () => {
-    if (!formData.description.trim() && !selectedImage) {
-      Alert.alert('Fehler', 'Bitte gib eine Beschreibung ein oder mache ein Foto');
-      return;
-    }
-
-    setIsAiLoading(true);
-    try {
-      const response = await nutritionApi.aiEstimate(formData.description, selectedImage || undefined);
-      const estimate = response.data;
-
-      setFormData(prev => ({
-        ...prev,
-        calories: estimate.calories?.toString() || prev.calories,
-        protein: estimate.protein?.toString() || prev.protein,
-        carbs: estimate.carbs?.toString() || prev.carbs,
-        fat: estimate.fat?.toString() || prev.fat,
-        fiber: estimate.fiber?.toString() || prev.fiber,
-        sugar: estimate.sugar?.toString() || prev.sugar,
-        salt: estimate.salt?.toString() || prev.salt,
-      }));
-    } catch (error) {
-      Alert.alert('Fehler', 'KI-Schätzung fehlgeschlagen');
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
   const handleTakePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
