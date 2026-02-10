@@ -105,8 +105,12 @@ Der Benutzer möchte eine vollständig lokale Health-Tracking App namens **Balan
 
 ## 3rd Party Integrations
 - **expo-sqlite**: Lokale Datenbank
-- **OpenAI API**: KI-Nährwertschätzung (gpt-4o-mini)
-- **FitBit**: Client ID hinterlegt (Integration pending)
+- **OpenAI API**: KI-Nährwertschätzung (gpt-4o-mini) ✅
+- **FitBit API**: Schritte, Schlaf, Herzfrequenz synchronisieren ✅
+  - Client ID: 23TMDZ
+  - Client Secret: 7d1bc6b5760e3d045102eebdec5ddec3
+  - OAuth2 Implicit Flow
+  - Redirect URI: balanceos://fitbit-callback
 
 ## Prioritized Backlog
 
