@@ -653,6 +653,84 @@ export default function SportScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* AI Training Goals Modal */}
+        <Modal
+          visible={goalsModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setGoalsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>🎯 KI-Trainingsziele</Text>
+                <TouchableOpacity onPress={() => setGoalsModalVisible(false)}>
+                  <Ionicons name="close" size={28} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalScroll}>
+                {/* Goal Input */}
+                <Text style={styles.inputLabel}>Was möchtest du erreichen?</Text>
+                <TextInput
+                  style={[styles.textInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                  value={goalInput}
+                  onChangeText={setGoalInput}
+                  placeholder="z.B. Große Oberarme bekommen, muskulöse Brust aufbauen, schlanke Figur erreichen..."
+                  placeholderTextColor={COLORS.textSecondary}
+                  multiline
+                />
+
+                <TouchableOpacity 
+                  style={styles.aiGenerateButton}
+                  onPress={handleGenerateGoals}
+                  disabled={isGoalsAiLoading}
+                >
+                  {isGoalsAiLoading ? (
+                    <ActivityIndicator color={COLORS.text} />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={20} color={COLORS.text} />
+                      <Text style={styles.aiGenerateButtonText}>Ziele generieren</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Generated Goals */}
+                {aiGeneratedGoals.length > 0 && (
+                  <View style={styles.generatedGoalsSection}>
+                    <Text style={styles.sectionSubtitle}>Vorgeschlagene Ziele:</Text>
+                    {aiGeneratedGoals.map((goal, index) => (
+                      <View key={index} style={styles.goalCard}>
+                        <View style={styles.goalHeader}>
+                          <Text style={styles.goalTitle}>{goal.name}</Text>
+                          <TouchableOpacity 
+                            style={styles.saveGoalButton}
+                            onPress={() => handleSaveGoal(goal)}
+                          >
+                            <Ionicons name="add-circle" size={28} color={COLORS.primary} />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.goalDescription}>{goal.description}</Text>
+                        <View style={styles.goalMeta}>
+                          <View style={styles.goalMetaItem}>
+                            <Ionicons name="flag" size={14} color={COLORS.accent} />
+                            <Text style={styles.goalMetaText}>{goal.target_value}</Text>
+                          </View>
+                          <View style={styles.goalMetaItem}>
+                            <Ionicons name="time" size={14} color={COLORS.info} />
+                            <Text style={styles.goalMetaText}>{goal.timeframe}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
