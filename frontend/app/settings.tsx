@@ -157,19 +157,26 @@ export default function SettingsScreen() {
     },
   ];
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => profileApi.get().then(res => res.data),
-  });
-
-  useEffect(() => {
-    if (profile?.tracking_settings) {
-      setSettings({
-        ...DEFAULT_SETTINGS,
-        ...profile.tracking_settings,
-      });
+  // Load profile data on mount
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const prof = await profileService.get();
+      setProfile(prof);
+      if (prof?.tracking_settings) {
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...prof.tracking_settings,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [profile]);
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => profileApi.update(data),
