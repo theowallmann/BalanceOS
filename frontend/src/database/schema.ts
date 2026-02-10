@@ -1,53 +1,13 @@
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SQLite from 'expo-sqlite';
 
-// Check if we're running on web
-const isWeb = Platform.OS === 'web';
+// Open or create the database
+const db = SQLite.openDatabaseSync('balanceos.db');
 
-// Storage keys for AsyncStorage fallback
-const STORAGE_KEYS = {
-  profile: '@healthmate_profile',
-  nutrition: '@healthmate_nutrition',
-  vitals: '@healthmate_vitals',
-  sport: '@healthmate_sport',
-  financeCategories: '@healthmate_finance_categories',
-  financeEntries: '@healthmate_finance_entries',
-  blockerRules: '@healthmate_blocker_rules',
-  notifications: '@healthmate_notifications',
-};
-
-// In-memory cache for web
-let memoryDb: {
-  profile: any;
-  nutrition: any[];
-  vitals: any[];
-  sport: any[];
-  financeCategories: any[];
-  financeEntries: any[];
-  blockerRules: any[];
-  notifications: any[];
-} = {
-  profile: null,
-  nutrition: [],
-  vitals: [],
-  sport: [],
-  financeCategories: [],
-  financeEntries: [],
-  blockerRules: [],
-  notifications: [],
-};
-
-// SQLite database (only on native)
-let sqliteDb: any = null;
-
-// Initialize SQLite only on native platforms
-async function initSQLite() {
-  if (!isWeb) {
-    const SQLite = await import('expo-sqlite');
-    sqliteDb = SQLite.openDatabaseSync('healthmate.db');
-    
-    // Create tables
-    await sqliteDb.execAsync(`
+// Initialize all tables
+export async function initDatabase(): Promise<void> {
+  try {
+    // Profile table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS profile (
         id INTEGER PRIMARY KEY DEFAULT 1,
         birth_date TEXT,
@@ -62,7 +22,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Nutrition entries table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS nutrition_entries (
         id TEXT PRIMARY KEY,
         date TEXT NOT NULL,
@@ -80,7 +41,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Vitals table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS vitals (
         id TEXT PRIMARY KEY,
         date TEXT UNIQUE NOT NULL,
@@ -98,7 +60,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Sport/Activity table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS sport (
         id TEXT PRIMARY KEY,
         date TEXT UNIQUE NOT NULL,
@@ -110,7 +73,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Finance categories table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS finance_categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -121,7 +85,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Finance entries table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS finance_entries (
         id TEXT PRIMARY KEY,
         category_id TEXT NOT NULL,
@@ -133,7 +98,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // App blocker rules table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS app_blocker_rules (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -151,7 +117,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Push notifications table
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -163,7 +130,8 @@ async function initSQLite() {
       );
     `);
 
-    await sqliteDb.execAsync(`
+    // Create indexes for better performance
+    await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_nutrition_date ON nutrition_entries(date);
       CREATE INDEX IF NOT EXISTS idx_vitals_date ON vitals(date);
       CREATE INDEX IF NOT EXISTS idx_sport_date ON sport(date);
@@ -172,80 +140,15 @@ async function initSQLite() {
     `);
 
     // Insert default profile if not exists
-    const profile = await sqliteDb.getFirstAsync('SELECT id FROM profile WHERE id = 1');
+    const profile = await db.getFirstAsync('SELECT id FROM profile WHERE id = 1');
     if (!profile) {
-      await sqliteDb.runAsync(`
+      await db.runAsync(`
         INSERT INTO profile (id, nutrient_goals, vital_goals, sport_goals, tracking_settings, language)
         VALUES (1, '{}', '{}', '{}', '{}', 'de')
       `);
     }
-  }
-}
 
-// Initialize AsyncStorage fallback for web
-async function initWebStorage() {
-  try {
-    // Load all data from AsyncStorage
-    const profileStr = await AsyncStorage.getItem(STORAGE_KEYS.profile);
-    const nutritionStr = await AsyncStorage.getItem(STORAGE_KEYS.nutrition);
-    const vitalsStr = await AsyncStorage.getItem(STORAGE_KEYS.vitals);
-    const sportStr = await AsyncStorage.getItem(STORAGE_KEYS.sport);
-    const financeCategoriesStr = await AsyncStorage.getItem(STORAGE_KEYS.financeCategories);
-    const financeEntriesStr = await AsyncStorage.getItem(STORAGE_KEYS.financeEntries);
-    const blockerRulesStr = await AsyncStorage.getItem(STORAGE_KEYS.blockerRules);
-    const notificationsStr = await AsyncStorage.getItem(STORAGE_KEYS.notifications);
-
-    memoryDb.profile = profileStr ? JSON.parse(profileStr) : {
-      id: 1,
-      nutrient_goals: {},
-      vital_goals: {},
-      sport_goals: {},
-      tracking_settings: {},
-      language: 'de',
-    };
-    memoryDb.nutrition = nutritionStr ? JSON.parse(nutritionStr) : [];
-    memoryDb.vitals = vitalsStr ? JSON.parse(vitalsStr) : [];
-    memoryDb.sport = sportStr ? JSON.parse(sportStr) : [];
-    memoryDb.financeCategories = financeCategoriesStr ? JSON.parse(financeCategoriesStr) : [];
-    memoryDb.financeEntries = financeEntriesStr ? JSON.parse(financeEntriesStr) : [];
-    memoryDb.blockerRules = blockerRulesStr ? JSON.parse(blockerRulesStr) : [];
-    memoryDb.notifications = notificationsStr ? JSON.parse(notificationsStr) : [];
-  } catch (error) {
-    console.error('Error loading web storage:', error);
-  }
-}
-
-// Save web storage
-async function saveWebStorage(key: keyof typeof memoryDb) {
-  if (isWeb) {
-    try {
-      const storageKey = {
-        profile: STORAGE_KEYS.profile,
-        nutrition: STORAGE_KEYS.nutrition,
-        vitals: STORAGE_KEYS.vitals,
-        sport: STORAGE_KEYS.sport,
-        financeCategories: STORAGE_KEYS.financeCategories,
-        financeEntries: STORAGE_KEYS.financeEntries,
-        blockerRules: STORAGE_KEYS.blockerRules,
-        notifications: STORAGE_KEYS.notifications,
-      }[key];
-      await AsyncStorage.setItem(storageKey, JSON.stringify(memoryDb[key]));
-    } catch (error) {
-      console.error('Error saving web storage:', error);
-    }
-  }
-}
-
-// Initialize database
-export async function initDatabase(): Promise<void> {
-  try {
-    if (isWeb) {
-      await initWebStorage();
-      console.log('Web storage initialized successfully');
-    } else {
-      await initSQLite();
-      console.log('SQLite database initialized successfully');
-    }
+    console.log('BalanceOS Database initialized successfully');
   } catch (error) {
     console.error('Database initialization error:', error);
     throw error;
@@ -261,36 +164,6 @@ export function generateId(): string {
   });
 }
 
-// Database wrapper that works on both web and native
-export const db = {
-  async getFirstAsync<T>(query: string, params?: any[]): Promise<T | null> {
-    if (isWeb) {
-      // Web fallback - parse query and return from memory
-      return null; // Services handle this directly
-    }
-    return sqliteDb?.getFirstAsync(query, params) || null;
-  },
-
-  async getAllAsync<T>(query: string, params?: any[]): Promise<T[]> {
-    if (isWeb) {
-      return []; // Services handle this directly
-    }
-    return sqliteDb?.getAllAsync(query, params) || [];
-  },
-
-  async runAsync(query: string, params?: any[]): Promise<void> {
-    if (!isWeb && sqliteDb) {
-      await sqliteDb.runAsync(query, params);
-    }
-  },
-
-  async execAsync(query: string): Promise<void> {
-    if (!isWeb && sqliteDb) {
-      await sqliteDb.execAsync(query);
-    }
-  },
-};
-
-// Export memory database and save function for services
-export { memoryDb, saveWebStorage, isWeb };
+// Export the database instance
+export { db };
 export default db;
