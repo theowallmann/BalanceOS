@@ -49,6 +49,12 @@ export default function NutritionScreen() {
   const [editingEntry, setEditingEntry] = useState<NutritionEntry | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // Speech-to-Text states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const [formData, setFormData] = useState({
     description: '',
