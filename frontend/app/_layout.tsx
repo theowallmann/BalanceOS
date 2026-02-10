@@ -12,9 +12,11 @@ import { useLanguage } from '../src/hooks/useLanguage';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes
-      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes - data is fresh for 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes - cache is kept for 30 minutes
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      refetchOnMount: false, // Don't refetch when component mounts if data is fresh
+      retry: 1, // Only retry once on failure
     },
   },
 });
