@@ -225,9 +225,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background,
   },
-  splashText: {
+  splashContent: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  splashTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.text,
     marginTop: 16,
-    fontSize: 16,
+    marginBottom: 24,
+  },
+  progressBarContainer: {
+    width: 200,
+    height: 6,
+    backgroundColor: COLORS.surfaceLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 3,
+  },
+  splashText: {
+    fontSize: 14,
     color: COLORS.textSecondary,
   },
 });
