@@ -28,6 +28,7 @@ export default function NutritionScreen() {
     description: '', calories: '', protein: '', carbs: '', fat: '',
     fiber: '', sugar: '', salt: '', water: '',
   });
+  const [isEstimating, setIsEstimating] = useState(false);
 
   const dateString = getDateString(selectedDate);
 
