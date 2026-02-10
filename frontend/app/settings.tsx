@@ -211,12 +211,6 @@ export default function SettingsScreen() {
     setActivePreset(preset.key);
   };
 
-  const handleSave = () => {
-    updateMutation.mutate({
-      tracking_settings: settings,
-    });
-  };
-
   const renderToggle = (
     key: keyof TrackingSettings,
     label: string,
