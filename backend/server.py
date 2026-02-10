@@ -448,6 +448,48 @@ async def get_ai_suggestions(request: Dict):
     goal_text = request.get("goal", "")
     if not goal_text:
         raise HTTPException(status_code=400, detail="Bitte gib ein Ziel an")
+
+# ==================== SPEECH TO TEXT ENDPOINT ====================
+
+@api_router.post("/speech-to-text")
+async def speech_to_text(file: UploadFile = File(...)):
+    """Convert speech audio to text using OpenAI Whisper"""
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenAI API Key nicht konfiguriert")
+    
+    try:
+        # Read the audio file
+        audio_content = await file.read()
+        
+        # Send to OpenAI Whisper API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                },
+                files={
+                    "file": (file.filename or "audio.m4a", audio_content, file.content_type or "audio/m4a"),
+                },
+                data={
+                    "model": "whisper-1",
+                    "language": "de",  # German
+                },
+                timeout=60.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Whisper API error: {response.text}")
+                raise HTTPException(status_code=500, detail="Fehler bei der Spracherkennung")
+            
+            result = response.json()
+            return {"text": result.get("text", "")}
+            
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Spracherkennung Timeout")
+    except Exception as e:
+        logger.error(f"Speech-to-text error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     
     profile = await db.profiles.find_one({})
     if not profile:
