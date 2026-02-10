@@ -267,9 +267,13 @@ export default function NutritionScreen() {
                 </View>
                 <Text style={styles.inputLabel}>{t('mealDescription')}</Text>
                 <TextInput style={[styles.textInput, { minHeight: 50 }]} value={formData.description} onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))} placeholder={language === 'de' ? "z.B. Haferflocken mit Banane" : "e.g. Oatmeal with banana"} placeholderTextColor={COLORS.textSecondary} multiline />
-                <TouchableOpacity style={styles.aiButton} onPress={handleAiEstimate}>
-                  <Ionicons name="sparkles" size={20} color={COLORS.text} />
-                  <Text style={styles.aiButtonText}>{t('aiEstimate')}</Text>
+                <TouchableOpacity style={[styles.aiButton, isEstimating && { opacity: 0.7 }]} onPress={handleAiEstimate} disabled={isEstimating}>
+                  {isEstimating ? (
+                    <ActivityIndicator size="small" color={COLORS.text} />
+                  ) : (
+                    <Ionicons name="sparkles" size={20} color={COLORS.text} />
+                  )}
+                  <Text style={styles.aiButtonText}>{isEstimating ? 'Schätze...' : t('aiEstimate')}</Text>
                 </TouchableOpacity>
                 <View style={styles.nutrientInputs}>
                   <View style={styles.inputRow}>
