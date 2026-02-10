@@ -950,6 +950,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     minHeight: 50,
   },
+  descriptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+  },
+  descriptionInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  voiceButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceButtonRecording: {
+    backgroundColor: COLORS.error + '30',
+  },
+  recordingHint: {
+    fontSize: 12,
+    color: COLORS.accent,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   aiButton: {
     flexDirection: 'row',
     alignItems: 'center',
