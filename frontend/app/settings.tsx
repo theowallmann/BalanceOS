@@ -178,17 +178,20 @@ export default function SettingsScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const updateMutation = useMutation({
-    mutationFn: (data: any) => profileApi.update(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await profileService.update({
+        tracking_settings: settings,
+      });
       setHasChanges(false);
       Alert.alert('Erfolg', 'Einstellungen gespeichert');
-    },
-    onError: () => {
+    } catch (error) {
       Alert.alert('Fehler', 'Einstellungen konnten nicht gespeichert werden');
-    },
-  });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleToggle = (key: keyof TrackingSettings) => {
     setSettings(prev => ({
