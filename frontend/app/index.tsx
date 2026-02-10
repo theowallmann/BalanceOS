@@ -260,7 +260,7 @@ export default function DashboardScreen() {
     return (
       <>
         <View style={styles.periodInfo}>
-          <Text style={styles.periodText}>{analytics.start_date} -> {analytics.end_date}</Text>
+          <Text style={styles.periodText}>{analytics.start_date} - {analytics.end_date}</Text>
           <Text style={styles.periodDays}>{daysWithData.nutrition || 0} Tage mit Daten</Text>
         </View>
 
