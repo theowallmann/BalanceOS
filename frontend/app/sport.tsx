@@ -8,8 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../src/constants/colors';
 import { useLanguage } from '../src/hooks/useLanguage';
-import { sportService, profileService } from '../src/database/services';
+import { sportService, profileService, vitalsService, nutritionSummaryService } from '../src/database/services';
 import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday } from '../src/utils/date';
+import { getWorkoutSuggestions } from '../src/services/aiService';
 
 const WORKOUT_TYPES = [
   { key: 'running', icon: 'walk' }, { key: 'cycling', icon: 'bicycle' },
