@@ -97,6 +97,8 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [fitbitConnected, setFitbitConnected] = useState(false);
+  const [fitbitLoading, setFitbitLoading] = useState(false);
 
   // Presets defined inside component to use translations
   const PRESETS = [
