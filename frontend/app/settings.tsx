@@ -400,9 +400,9 @@ export default function SettingsScreen() {
           <TouchableOpacity 
             style={styles.saveButton} 
             onPress={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={isSaving}
           >
-            {updateMutation.isPending ? (
+            {isSaving ? (
               <ActivityIndicator color={COLORS.text} />
             ) : (
               <Text style={styles.saveButtonText}>{t('save')}</Text>
