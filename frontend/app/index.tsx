@@ -21,12 +21,6 @@ import { getDateString, getDisplayDate, getPreviousDay, getNextDay, isToday } fr
 
 type Period = 'today' | 'month' | 'all';
 
-const PERIODS: { key: Period; label: string; labelEn: string }[] = [
-  { key: 'today', label: 'Heute', labelEn: 'Today' },
-  { key: 'month', label: '30 Tage', labelEn: '30 Days' },
-  { key: 'all', label: 'Gesamt', labelEn: 'All Time' },
-];
-
 export default function DashboardScreen() {
   const { t, language } = useLanguage();
   const insets = useSafeAreaInsets();
